@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import Combine
 
 @MainActor
 class NormalDistributionViewModel: ObservableObject {
@@ -10,7 +11,7 @@ class NormalDistributionViewModel: ObservableObject {
     // Parameters
     @Published var mean: Double = 0
     @Published var stdDev: Double = 1
-    @Published var sampleCount: Int = 100
+    @Published var sampleCount: Int = 1000
 
     // Computed statistics
     var actualMean: Double {

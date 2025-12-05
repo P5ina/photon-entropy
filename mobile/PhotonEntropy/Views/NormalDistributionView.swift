@@ -78,8 +78,8 @@ struct NormalDistributionView: View {
                         get: { Double(viewModel.sampleCount) },
                         set: { viewModel.sampleCount = Int($0) }
                     ),
-                    in: 10...500,
-                    step: 10
+                    in: 100...5000,
+                    step: 100
                 )
                 .tint(.accentColor)
             }

@@ -226,8 +226,8 @@ func (h *EntropyHandler) Normal(c *gin.Context) {
 		return
 	}
 
-	if count < 1 || count > 1000 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "count must be between 1 and 1000"})
+	if count < 1 || count > 10000 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "count must be between 1 and 10000"})
 		return
 	}
 

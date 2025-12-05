@@ -6,6 +6,9 @@ import sys
 import time
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from config import Config
 from entropy_collector import EntropyCollector
 from entropy_tester import EntropyTester

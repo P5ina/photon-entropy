@@ -50,7 +50,8 @@ class EntropyCollector:
 
     def is_dark(self) -> bool:
         sample = self.read_sample()
-        is_dark = sample < self.config.light_threshold
+        # Higher raw value = darker (inverted logic)
+        is_dark = sample > self.config.light_threshold
         logger.debug(f"Light level: {sample}, threshold: {self.config.light_threshold}, is_dark: {is_dark}")
         return is_dark
 

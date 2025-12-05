@@ -1,24 +1,28 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/P5ina/photon-entropy/config"
 	"github.com/P5ina/photon-entropy/db/sqlc"
+	"github.com/P5ina/photon-entropy/ws"
 	"github.com/gin-gonic/gin"
 )
 
 type DeviceHandler struct {
 	queries *sqlc.Queries
 	config  *config.Config
+	hub     *ws.Hub
 }
 
-func NewDeviceHandler(q *sqlc.Queries, cfg *config.Config) *DeviceHandler {
+func NewDeviceHandler(q *sqlc.Queries, cfg *config.Config, hub *ws.Hub) *DeviceHandler {
 	return &DeviceHandler{
 		queries: q,
 		config:  cfg,
+		hub:     hub,
 	}
 }
 
@@ -29,6 +33,7 @@ type DeviceStatusResponse struct {
 	TotalCommits   int64     `json:"total_commits"`
 	AverageQuality float64   `json:"average_quality"`
 	EntropyPool    int       `json:"entropy_pool_size"`
+	IsTooBright    bool      `json:"is_too_bright"`
 }
 
 func (h *DeviceHandler) Status(c *gin.Context) {
@@ -58,6 +63,7 @@ func (h *DeviceHandler) Status(c *gin.Context) {
 				LastSeen:       d.LastSeen.Time,
 				TotalCommits:   d.TotalCommits.Int64,
 				AverageQuality: d.AverageQuality.Float64,
+				IsTooBright:    d.IsTooBright.Int64 == 1,
 			}
 		}
 
@@ -82,6 +88,7 @@ func (h *DeviceHandler) Status(c *gin.Context) {
 		LastSeen:       device.LastSeen.Time,
 		TotalCommits:   device.TotalCommits.Int64,
 		AverageQuality: device.AverageQuality.Float64,
+		IsTooBright:    device.IsTooBright.Int64 == 1,
 	})
 }
 
@@ -141,4 +148,65 @@ func (h *DeviceHandler) History(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, items)
+}
+
+type UpdateStatusRequest struct {
+	DeviceID    string `json:"device_id" binding:"required"`
+	IsTooBright bool   `json:"is_too_bright"`
+}
+
+func (h *DeviceHandler) UpdateStatus(c *gin.Context) {
+	var req UpdateStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	device, err := h.queries.GetDevice(c, req.DeviceID)
+	if err != nil {
+		// Device doesn't exist, create it
+		device, err = h.queries.UpsertDevice(c, sqlc.UpsertDeviceParams{
+			ID:          req.DeviceID,
+			LastSeen:    sql.NullTime{Time: time.Now(), Valid: true},
+			IsTooBright: sql.NullInt64{Int64: boolToInt(req.IsTooBright), Valid: true},
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create device"})
+			return
+		}
+	} else {
+		// Update existing device
+		device, err = h.queries.UpsertDevice(c, sqlc.UpsertDeviceParams{
+			ID:             req.DeviceID,
+			LastSeen:       sql.NullTime{Time: time.Now(), Valid: true},
+			TotalCommits:   device.TotalCommits,
+			AverageQuality: device.AverageQuality,
+			IsTooBright:    sql.NullInt64{Int64: boolToInt(req.IsTooBright), Valid: true},
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update device"})
+			return
+		}
+	}
+
+	// Broadcast via WebSocket
+	if h.hub != nil {
+		h.hub.BroadcastDeviceUpdate(
+			device.ID,
+			true,
+			time.Now().UTC(),
+			device.TotalCommits.Int64,
+			device.AverageQuality.Float64,
+			req.IsTooBright,
+		)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+func boolToInt(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
 }

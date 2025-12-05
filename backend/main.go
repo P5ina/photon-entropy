@@ -60,7 +60,7 @@ func main() {
 	go hub.Run()
 
 	entropyHandler := handlers.NewEntropyHandler(queries, pool, v, cfg, hub)
-	deviceHandler := handlers.NewDeviceHandler(queries, cfg)
+	deviceHandler := handlers.NewDeviceHandler(queries, cfg, hub)
 	statsHandler := handlers.NewStatsHandler(queries, pool)
 	wsHandler := handlers.NewWebSocketHandler(hub)
 
@@ -90,6 +90,7 @@ func main() {
 
 		// Device endpoints
 		api.GET("/device/status", deviceHandler.Status)
+		api.POST("/device/status", deviceHandler.UpdateStatus)
 		api.GET("/device/history", deviceHandler.History)
 
 		// Stats endpoint

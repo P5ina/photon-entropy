@@ -33,6 +33,13 @@ class APIService: ObservableObject {
 
     @Published var baseURL: String = "https://entropy.p5ina.dev"
 
+    // Dedicated session to avoid SwiftUI task cancellation
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        return URLSession(configuration: config)
+    }()
+
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -44,12 +51,22 @@ class APIService: ObservableObject {
     // MARK: - Health
 
     func healthCheck() async -> Bool {
-        guard let url = URL(string: "\(baseURL)/health") else { return false }
+        guard let url = URL(string: "\(baseURL)/health") else {
+            print("[API] Health check: invalid URL")
+            return false
+        }
 
         do {
-            let (_, response) = try await URLSession.shared.data(from: url)
-            return (response as? HTTPURLResponse)?.statusCode == 200
+            let (_, response) = try await session.data(from: url)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            print("[API] Health check status: \(statusCode)")
+            return statusCode == 200
+        } catch let error as NSError where error.code == NSURLErrorCancelled {
+            // Task was cancelled by SwiftUI - don't treat as failure
+            print("[API] Health check cancelled, assuming still connected")
+            return true
         } catch {
+            print("[API] Health check error: \(error)")
             return false
         }
     }
@@ -122,7 +139,7 @@ class APIService: ObservableObject {
 
     private func fetch<T: Decodable>(url: URL) async throws -> T {
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await session.data(from: url)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse

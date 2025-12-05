@@ -15,12 +15,13 @@ SET last_seen = ?,
 WHERE id = ?;
 
 -- name: UpsertDevice :one
-INSERT INTO devices (id, last_seen, total_commits, average_quality)
-VALUES (?, ?, ?, ?)
+INSERT INTO devices (id, last_seen, total_commits, average_quality, is_too_bright)
+VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     last_seen = excluded.last_seen,
     total_commits = excluded.total_commits,
-    average_quality = excluded.average_quality
+    average_quality = excluded.average_quality,
+    is_too_bright = excluded.is_too_bright
 RETURNING *;
 
 -- name: GetAllDevices :many

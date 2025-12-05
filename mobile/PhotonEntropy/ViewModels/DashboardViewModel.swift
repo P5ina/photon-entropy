@@ -14,12 +14,14 @@ class DashboardViewModel: ObservableObject {
     private let apiService = APIService.shared
     private let wsService = WebSocketService.shared
     private var cancellables = Set<AnyCancellable>()
+    private var hasInitiallyLoaded = false
 
     var primaryDevice: DeviceStatus? {
         devices.first
     }
 
     init() {
+        print("[VM] DashboardViewModel init")
         setupWebSocketSubscriptions()
     }
 
@@ -65,7 +67,8 @@ class DashboardViewModel: ObservableObject {
                 lastSeen: update.lastSeen,
                 totalCommits: Int(update.totalCommits),
                 averageQuality: update.averageQuality,
-                entropyPoolSize: devices[index].entropyPoolSize
+                entropyPoolSize: devices[index].entropyPoolSize,
+                isTooBright: update.isTooBright
             )
         }
     }
@@ -105,31 +108,47 @@ class DashboardViewModel: ObservableObject {
         wsService.disconnect()
     }
 
+    func initialLoad() async {
+        guard !hasInitiallyLoaded else { return }
+        await doRefresh()
+        hasInitiallyLoaded = true
+    }
+
     func refresh() async {
-        isLoading = true
-        error = nil
+        // Ignore spurious refreshable triggers during/right after initial load
+        guard hasInitiallyLoaded else {
+            print("[REFRESH] Ignored - initial load in progress")
+            return
+        }
+        await doRefresh()
+    }
 
-        isConnected = await apiService.healthCheck()
-
-        if !isConnected {
-            error = "Cannot connect to server"
-            isLoading = false
+    private func doRefresh() async {
+        guard !isLoading else {
+            print("[REFRESH] Skipped - already loading")
             return
         }
 
+        isLoading = true
+        error = nil
+
         do {
-            async let devicesTask = apiService.getDeviceStatus()
-            async let statsTask = apiService.getStats()
+            print("[REFRESH] Fetching...")
+            let fetchedDevices = try await apiService.getDeviceStatus()
+            let fetchedStats = try await apiService.getStats()
 
-            devices = try await devicesTask
-            stats = try await statsTask
+            devices = fetchedDevices
+            stats = fetchedStats
+            isConnected = true
+            print("[REFRESH] Done - \(devices.count) devices")
 
-            // Connect WebSocket after initial data load
             if !isWebSocketConnected {
                 connectWebSocket()
             }
         } catch {
+            print("[REFRESH] Error: \(error)")
             self.error = error.localizedDescription
+            isConnected = false
         }
 
         isLoading = false

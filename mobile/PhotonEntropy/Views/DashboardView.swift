@@ -29,10 +29,12 @@ struct DashboardView: View {
             }
             .navigationTitle("PhotonEntropy")
             .refreshable {
-                await viewModel.refresh()
+                // Wrap in Task to prevent SwiftUI from cancelling the request
+                // See: https://stackoverflow.com/questions/74977787
+                await Task { await viewModel.refresh() }.value
             }
             .task {
-                await viewModel.refresh()
+                await viewModel.initialLoad()
             }
         }
     }
@@ -78,6 +80,19 @@ struct DashboardView: View {
                 StatusIndicator(isOnline: device.isOnline)
             }
 
+            if device.isTooBright {
+                HStack {
+                    Image(systemName: "sun.max.fill")
+                        .foregroundStyle(.yellow)
+                    Text("Too bright - entropy collection paused")
+                        .font(.subheadline)
+                    Spacer()
+                }
+                .padding(10)
+                .background(Color.yellow.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "cpu")
@@ -89,7 +104,10 @@ struct DashboardView: View {
                 HStack {
                     Image(systemName: "clock")
                         .foregroundStyle(.secondary)
-                    Text("Last seen \(device.lastSeenFormatted)")
+                    Text("Last seen ")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    + Text(device.lastSeen, style: .relative)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -112,8 +130,10 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemGray6))
+        )
     }
 
     private func statsSection(_ stats: StatsResponse) -> some View {
@@ -181,9 +201,13 @@ struct DashboardView: View {
                             Text("\(commit.samples) samples")
                                 .font(.subheadline.weight(.medium))
                         }
-                        Text(commit.deviceId)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 4) {
+                            Text(commit.deviceId)
+                            Text("•")
+                            Text(commit.createdAt, style: .relative)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
 
                     Spacer()
@@ -198,8 +222,10 @@ struct DashboardView: View {
             }
         }
         .padding()
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemGray6))
+        )
     }
 }
 

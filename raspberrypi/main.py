@@ -112,12 +112,18 @@ def main():
 
     while running:
         try:
+            is_too_bright = not collector.is_dark()
+
             if not args.skip_darkness_check:
-                if not collector.wait_for_darkness(timeout=config.collect_interval):
-                    logger.info("Still too bright, skipping this cycle")
-                    if args.once:
-                        break
-                    continue
+                if is_too_bright:
+                    if not collector.wait_for_darkness(timeout=config.collect_interval):
+                        logger.info("Still too bright, skipping this cycle")
+                        # Report status even when too bright
+                        client.report_status(is_too_bright=True)
+                        if args.once:
+                            break
+                        continue
+                    is_too_bright = False
 
             samples, timestamps = collector.collect()
 
@@ -135,7 +141,7 @@ def main():
                 time.sleep(config.collect_interval)
                 continue
 
-            response = client.submit(samples, timestamps)
+            response = client.submit(samples, timestamps, is_too_bright=is_too_bright)
 
             if response:
                 logger.info(f"Server response: quality={response.quality:.0%}, accepted={response.accepted}")

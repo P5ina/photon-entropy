@@ -37,9 +37,10 @@ func NewEntropyHandler(q *sqlc.Queries, p *entropy.Pool, v *verifier.Verifier, c
 }
 
 type SubmitRequest struct {
-	DeviceID   string  `json:"device_id" binding:"required"`
-	RawSamples []int   `json:"raw_samples" binding:"required"`
-	Timestamps []int64 `json:"timestamps"`
+	DeviceID    string  `json:"device_id" binding:"required"`
+	RawSamples  []int   `json:"raw_samples" binding:"required"`
+	Timestamps  []int64 `json:"timestamps"`
+	IsTooBright bool    `json:"is_too_bright"`
 }
 
 type SubmitResponse struct {
@@ -96,6 +97,7 @@ func (h *EntropyHandler) Submit(c *gin.Context) {
 		LastSeen:       sql.NullTime{Time: time.Now(), Valid: true},
 		TotalCommits:   sql.NullInt64{Int64: count, Valid: true},
 		AverageQuality: sql.NullFloat64{Float64: avgQuality, Valid: true},
+		IsTooBright:    sql.NullInt64{Int64: boolToInt64(req.IsTooBright), Valid: true},
 	})
 
 	accepted := result.Quality >= h.config.Entropy.MinQuality
@@ -106,7 +108,7 @@ func (h *EntropyHandler) Submit(c *gin.Context) {
 	// Broadcast WebSocket events
 	if h.hub != nil {
 		h.hub.BroadcastNewCommit(commitID, req.DeviceID, result.Quality, len(req.RawSamples), accepted, time.Now().UTC())
-		h.hub.BroadcastDeviceUpdate(req.DeviceID, true, time.Now().UTC(), count, avgQuality)
+		h.hub.BroadcastDeviceUpdate(req.DeviceID, true, time.Now().UTC(), count, avgQuality, req.IsTooBright)
 		h.hub.BroadcastPoolUpdate(h.pool.Size(), h.pool.MaxSize())
 	}
 

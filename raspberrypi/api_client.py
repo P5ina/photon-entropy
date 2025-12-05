@@ -39,12 +39,14 @@ class APIClient:
         self,
         raw_samples: List[int],
         timestamps: List[int],
+        is_too_bright: bool = False,
     ) -> Optional[SubmitResponse]:
         try:
             payload = {
                 "device_id": self.config.device_id,
                 "raw_samples": raw_samples,
                 "timestamps": timestamps,
+                "is_too_bright": is_too_bright,
             }
 
             logger.debug(f"Submitting {len(raw_samples)} samples to {self.base_url}")
@@ -90,3 +92,27 @@ class APIClient:
         except requests.RequestException as e:
             logger.error(f"Get status request failed: {e}")
             return None
+
+    def report_status(self, is_too_bright: bool) -> bool:
+        try:
+            payload = {
+                "device_id": self.config.device_id,
+                "is_too_bright": is_too_bright,
+            }
+
+            response = self.session.post(
+                f"{self.base_url}/api/v1/device/status",
+                json=payload,
+                timeout=10,
+            )
+
+            if response.status_code == 200:
+                logger.debug(f"Status reported: is_too_bright={is_too_bright}")
+                return True
+            else:
+                logger.error(f"Report status failed: {response.status_code}")
+                return False
+
+        except requests.RequestException as e:
+            logger.error(f"Report status request failed: {e}")
+            return False

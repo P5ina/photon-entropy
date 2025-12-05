@@ -32,6 +32,7 @@ type DeviceUpdateData struct {
 	LastSeen       time.Time `json:"last_seen"`
 	TotalCommits   int64     `json:"total_commits"`
 	AverageQuality float64   `json:"average_quality"`
+	IsTooBright    bool      `json:"is_too_bright"`
 }
 
 type NewCommitData struct {
@@ -125,7 +126,7 @@ func (h *Hub) BroadcastPoolUpdate(size, maxSize int) {
 	})
 }
 
-func (h *Hub) BroadcastDeviceUpdate(deviceID string, isOnline bool, lastSeen time.Time, totalCommits int64, avgQuality float64) {
+func (h *Hub) BroadcastDeviceUpdate(deviceID string, isOnline bool, lastSeen time.Time, totalCommits int64, avgQuality float64, isTooBright bool) {
 	h.Broadcast(Message{
 		Type: MessageTypeDeviceUpdate,
 		Data: DeviceUpdateData{
@@ -134,6 +135,7 @@ func (h *Hub) BroadcastDeviceUpdate(deviceID string, isOnline bool, lastSeen tim
 			LastSeen:       lastSeen,
 			TotalCommits:   totalCommits,
 			AverageQuality: avgQuality,
+			IsTooBright:    isTooBright,
 		},
 	})
 }

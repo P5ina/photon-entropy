@@ -24,7 +24,7 @@ func (q *Queries) CountDevices(ctx context.Context) (int64, error) {
 const createDevice = `-- name: CreateDevice :one
 INSERT INTO devices (id)
 VALUES (?)
-RETURNING id, last_seen, total_commits, average_quality, created_at
+RETURNING id, last_seen, total_commits, average_quality, created_at, is_too_bright
 `
 
 func (q *Queries) CreateDevice(ctx context.Context, id string) (Device, error) {
@@ -36,12 +36,13 @@ func (q *Queries) CreateDevice(ctx context.Context, id string) (Device, error) {
 		&i.TotalCommits,
 		&i.AverageQuality,
 		&i.CreatedAt,
+		&i.IsTooBright,
 	)
 	return i, err
 }
 
 const getAllDevices = `-- name: GetAllDevices :many
-SELECT id, last_seen, total_commits, average_quality, created_at FROM devices
+SELECT id, last_seen, total_commits, average_quality, created_at, is_too_bright FROM devices
 ORDER BY last_seen DESC
 `
 
@@ -60,6 +61,7 @@ func (q *Queries) GetAllDevices(ctx context.Context) ([]Device, error) {
 			&i.TotalCommits,
 			&i.AverageQuality,
 			&i.CreatedAt,
+			&i.IsTooBright,
 		); err != nil {
 			return nil, err
 		}
@@ -75,7 +77,7 @@ func (q *Queries) GetAllDevices(ctx context.Context) ([]Device, error) {
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, last_seen, total_commits, average_quality, created_at FROM devices
+SELECT id, last_seen, total_commits, average_quality, created_at, is_too_bright FROM devices
 WHERE id = ? LIMIT 1
 `
 
@@ -88,12 +90,13 @@ func (q *Queries) GetDevice(ctx context.Context, id string) (Device, error) {
 		&i.TotalCommits,
 		&i.AverageQuality,
 		&i.CreatedAt,
+		&i.IsTooBright,
 	)
 	return i, err
 }
 
 const getOnlineDevices = `-- name: GetOnlineDevices :many
-SELECT id, last_seen, total_commits, average_quality, created_at FROM devices
+SELECT id, last_seen, total_commits, average_quality, created_at, is_too_bright FROM devices
 WHERE last_seen > datetime('now', '-2 minutes')
 ORDER BY last_seen DESC
 `
@@ -113,6 +116,7 @@ func (q *Queries) GetOnlineDevices(ctx context.Context) ([]Device, error) {
 			&i.TotalCommits,
 			&i.AverageQuality,
 			&i.CreatedAt,
+			&i.IsTooBright,
 		); err != nil {
 			return nil, err
 		}
@@ -153,13 +157,14 @@ func (q *Queries) UpdateDeviceStats(ctx context.Context, arg UpdateDeviceStatsPa
 }
 
 const upsertDevice = `-- name: UpsertDevice :one
-INSERT INTO devices (id, last_seen, total_commits, average_quality)
-VALUES (?, ?, ?, ?)
+INSERT INTO devices (id, last_seen, total_commits, average_quality, is_too_bright)
+VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     last_seen = excluded.last_seen,
     total_commits = excluded.total_commits,
-    average_quality = excluded.average_quality
-RETURNING id, last_seen, total_commits, average_quality, created_at
+    average_quality = excluded.average_quality,
+    is_too_bright = excluded.is_too_bright
+RETURNING id, last_seen, total_commits, average_quality, created_at, is_too_bright
 `
 
 type UpsertDeviceParams struct {
@@ -167,6 +172,7 @@ type UpsertDeviceParams struct {
 	LastSeen       sql.NullTime    `json:"last_seen"`
 	TotalCommits   sql.NullInt64   `json:"total_commits"`
 	AverageQuality sql.NullFloat64 `json:"average_quality"`
+	IsTooBright    sql.NullInt64   `json:"is_too_bright"`
 }
 
 func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error) {
@@ -175,6 +181,7 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Dev
 		arg.LastSeen,
 		arg.TotalCommits,
 		arg.AverageQuality,
+		arg.IsTooBright,
 	)
 	var i Device
 	err := row.Scan(
@@ -183,6 +190,7 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Dev
 		&i.TotalCommits,
 		&i.AverageQuality,
 		&i.CreatedAt,
+		&i.IsTooBright,
 	)
 	return i, err
 }

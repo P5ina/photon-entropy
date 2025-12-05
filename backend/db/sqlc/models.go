@@ -32,4 +32,5 @@ type Device struct {
 	TotalCommits   sql.NullInt64   `json:"total_commits"`
 	AverageQuality sql.NullFloat64 `json:"average_quality"`
 	CreatedAt      sql.NullTime    `json:"created_at"`
+	IsTooBright    sql.NullInt64   `json:"is_too_bright"`
 }

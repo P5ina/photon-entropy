@@ -34,6 +34,7 @@ struct DeviceUpdateData: Codable {
     let lastSeen: Date
     let totalCommits: Int
     let averageQuality: Double
+    let isTooBright: Bool
 
     enum CodingKeys: String, CodingKey {
         case deviceId = "device_id"
@@ -41,6 +42,7 @@ struct DeviceUpdateData: Codable {
         case lastSeen = "last_seen"
         case totalCommits = "total_commits"
         case averageQuality = "average_quality"
+        case isTooBright = "is_too_bright"
     }
 }
 
@@ -134,8 +136,16 @@ class WebSocketService: ObservableObject {
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var reconnectAttempts = 0
-    private let maxReconnectAttempts = 5
-    private var reconnectTimer: Timer?
+    private let maxReconnectAttempts = 10
+    private var reconnectWorkItem: DispatchWorkItem?
+    private var pingTask: Task<Void, Never>?
+
+    // Dedicated session for WebSocket to avoid interference with API calls
+    private lazy var webSocketSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.waitsForConnectivity = true
+        return URLSession(configuration: config)
+    }()
 
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -146,7 +156,14 @@ class WebSocketService: ObservableObject {
     private init() {}
 
     func connect() {
-        guard webSocketTask == nil else { return }
+        // Clean up any existing dead connection
+        if let task = webSocketTask {
+            if task.state != .running {
+                cleanup()
+            } else {
+                return // Already connected
+            }
+        }
 
         let baseURL = APIService.shared.baseURL
         let wsURL = baseURL
@@ -155,21 +172,51 @@ class WebSocketService: ObservableObject {
 
         guard let url = URL(string: "\(wsURL)/ws") else { return }
 
-        webSocketTask = URLSession.shared.webSocketTask(with: url)
-        webSocketTask?.resume()
+        print("[WebSocket] Connecting to \(url)")
+        let task = webSocketSession.webSocketTask(with: url)
+        webSocketTask = task
+        task.resume()
 
         isConnected = true
         reconnectAttempts = 0
-
         receiveMessage()
+        startPing()
+    }
+
+    func reconnect() {
+        cleanup()
+        connect()
     }
 
     func disconnect() {
-        reconnectTimer?.invalidate()
-        reconnectTimer = nil
+        reconnectWorkItem?.cancel()
+        reconnectWorkItem = nil
+        cleanup()
+    }
+
+    private func cleanup() {
+        pingTask?.cancel()
+        pingTask = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         isConnected = false
+    }
+
+    private func startPing() {
+        pingTask?.cancel()
+        pingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
+                guard !Task.isCancelled else { break }
+                self?.webSocketTask?.sendPing { error in
+                    Task { @MainActor in
+                        if error != nil {
+                            self?.handleDisconnect()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func receiveMessage() {
@@ -179,7 +226,8 @@ class WebSocketService: ObservableObject {
                 case .success(let message):
                     self?.handleMessage(message)
                     self?.receiveMessage()
-                case .failure:
+                case .failure(let error):
+                    print("[WebSocket] Receive error: \(error)")
                     self?.handleDisconnect()
                 }
             }
@@ -187,52 +235,68 @@ class WebSocketService: ObservableObject {
     }
 
     private func handleMessage(_ message: URLSessionWebSocketTask.Message) {
-        guard case .string(let text) = message,
-              let data = text.data(using: .utf8) else { return }
+        guard case .string(let text) = message else { return }
 
-        do {
-            let wsMessage = try decoder.decode(WebSocketMessage.self, from: data)
+        // Backend may batch multiple JSON messages with newlines
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: true)
 
-            guard let dataDict = wsMessage.data.value as? [String: Any] else { return }
-            let dataJSON = try JSONSerialization.data(withJSONObject: dataDict)
+        for line in lines {
+            guard let data = String(line).data(using: .utf8) else { continue }
 
-            switch wsMessage.type {
-            case .poolUpdate:
-                let update = try decoder.decode(PoolUpdateData.self, from: dataJSON)
-                poolSize = update.size
-                poolMaxSize = update.maxSize
-                poolUpdateSubject.send(update)
+            do {
+                let wsMessage = try decoder.decode(WebSocketMessage.self, from: data)
 
-            case .deviceUpdate:
-                let update = try decoder.decode(DeviceUpdateData.self, from: dataJSON)
-                deviceUpdateSubject.send(update)
+                guard let dataDict = wsMessage.data.value as? [String: Any] else { continue }
+                let dataJSON = try JSONSerialization.data(withJSONObject: dataDict)
 
-            case .newCommit:
-                let commit = try decoder.decode(NewCommitData.self, from: dataJSON)
-                newCommitSubject.send(commit)
+                switch wsMessage.type {
+                case .poolUpdate:
+                    let update = try decoder.decode(PoolUpdateData.self, from: dataJSON)
+                    poolSize = update.size
+                    poolMaxSize = update.maxSize
+                    poolUpdateSubject.send(update)
 
-            case .statsUpdate:
-                let stats = try decoder.decode(StatsUpdateData.self, from: dataJSON)
-                statsUpdateSubject.send(stats)
+                case .deviceUpdate:
+                    let update = try decoder.decode(DeviceUpdateData.self, from: dataJSON)
+                    deviceUpdateSubject.send(update)
+
+                case .newCommit:
+                    let commit = try decoder.decode(NewCommitData.self, from: dataJSON)
+                    newCommitSubject.send(commit)
+
+                case .statsUpdate:
+                    let stats = try decoder.decode(StatsUpdateData.self, from: dataJSON)
+                    statsUpdateSubject.send(stats)
+                }
+            } catch {
+                print("WebSocket decode error: \(error)")
             }
-        } catch {
-            print("WebSocket decode error: \(error)")
         }
     }
 
     private func handleDisconnect() {
+        print("[WebSocket] Disconnected, attempt \(reconnectAttempts + 1)/\(maxReconnectAttempts)")
+        pingTask?.cancel()
+        pingTask = nil
         webSocketTask = nil
         isConnected = false
 
-        guard reconnectAttempts < maxReconnectAttempts else { return }
+        guard reconnectAttempts < maxReconnectAttempts else {
+            print("[WebSocket] Max reconnect attempts reached")
+            return
+        }
 
         reconnectAttempts += 1
-        let delay = Double(min(reconnectAttempts * 2, 30))
+        let delay = min(reconnectAttempts * 2, 30)
+        print("[WebSocket] Reconnecting in \(delay)s...")
 
-        reconnectTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+        reconnectWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
             Task { @MainActor in
                 self?.connect()
             }
         }
+        reconnectWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(delay), execute: workItem)
     }
 }

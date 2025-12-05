@@ -7,6 +7,7 @@ struct DeviceStatus: Codable, Identifiable {
     let totalCommits: Int
     let averageQuality: Double
     let entropyPoolSize: Int?
+    let isTooBright: Bool
 
     var id: String { deviceId }
 
@@ -27,5 +28,6 @@ struct DeviceStatus: Codable, Identifiable {
         case totalCommits = "total_commits"
         case averageQuality = "average_quality"
         case entropyPoolSize = "entropy_pool_size"
+        case isTooBright = "is_too_bright"
     }
 }

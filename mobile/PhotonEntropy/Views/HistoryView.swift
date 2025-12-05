@@ -14,7 +14,7 @@ struct HistoryView: View {
             }
             .navigationTitle("History")
             .refreshable {
-                await viewModel.refresh()
+                await Task { await viewModel.refresh() }.value
             }
             .task {
                 await viewModel.refresh()
@@ -62,9 +62,13 @@ struct CommitRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Label(commit.createdAtFormatted, systemImage: "clock")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Label {
+                    Text(commit.createdAt, style: .relative)
+                } icon: {
+                    Image(systemName: "clock")
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
 
             testsRow

@@ -125,6 +125,14 @@ class APIService: ObservableObject {
         return try await fetch(url: url)
     }
 
+    func generateNormalDistribution(mean: Double = 0, stdDev: Double = 1, count: Int = 100) async throws -> NormalDistributionResponse {
+        guard let url = URL(string: "\(baseURL)/api/v1/entropy/normal?mean=\(mean)&std_dev=\(stdDev)&count=\(count)") else {
+            throw APIError.invalidURL
+        }
+
+        return try await fetch(url: url)
+    }
+
     // MARK: - Stats
 
     func getStats() async throws -> StatsResponse {

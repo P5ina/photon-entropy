@@ -87,6 +87,7 @@ func main() {
 		api.GET("/entropy/random", entropyHandler.Random)
 		api.GET("/entropy/password", entropyHandler.Password)
 		api.GET("/entropy/uuid", entropyHandler.UUID)
+		api.GET("/entropy/normal", entropyHandler.Normal)
 
 		// Device endpoints
 		api.GET("/device/status", deviceHandler.Status)

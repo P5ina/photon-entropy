@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -202,6 +203,70 @@ func (h *EntropyHandler) UUID(c *gin.Context) {
 
 	c.JSON(http.StatusOK, UUIDResponse{
 		UUID:        uuidStr,
+		GeneratedAt: time.Now().UTC(),
+	})
+}
+
+type NormalResponse struct {
+	Values      []float64 `json:"values"`
+	Mean        float64   `json:"mean"`
+	StdDev      float64   `json:"std_dev"`
+	Count       int       `json:"count"`
+	GeneratedAt time.Time `json:"generated_at"`
+}
+
+// Normal generates normally distributed random numbers using Box-Muller transform
+func (h *EntropyHandler) Normal(c *gin.Context) {
+	mean, _ := strconv.ParseFloat(c.DefaultQuery("mean", "0"), 64)
+	stdDev, _ := strconv.ParseFloat(c.DefaultQuery("std_dev", "1"), 64)
+	count, _ := strconv.Atoi(c.DefaultQuery("count", "100"))
+
+	if stdDev <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "std_dev must be positive"})
+		return
+	}
+
+	if count < 1 || count > 1000 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "count must be between 1 and 1000"})
+		return
+	}
+
+	values := make([]float64, 0, count)
+
+	// Box-Muller transform generates pairs of values
+	for len(values) < count {
+		u1, ok1 := h.pool.GetFloat64()
+		u2, ok2 := h.pool.GetFloat64()
+		if !ok1 || !ok2 {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "insufficient entropy"})
+			return
+		}
+
+		// Avoid log(0)
+		for u1 == 0 {
+			u1, ok1 = h.pool.GetFloat64()
+			if !ok1 {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"error": "insufficient entropy"})
+				return
+			}
+		}
+
+		// Box-Muller transform
+		z0 := math.Sqrt(-2*math.Log(u1)) * math.Cos(2*math.Pi*u2)
+		z1 := math.Sqrt(-2*math.Log(u1)) * math.Sin(2*math.Pi*u2)
+
+		// Scale and shift
+		values = append(values, mean+stdDev*z0)
+		if len(values) < count {
+			values = append(values, mean+stdDev*z1)
+		}
+	}
+
+	c.JSON(http.StatusOK, NormalResponse{
+		Values:      values,
+		Mean:        mean,
+		StdDev:      stdDev,
+		Count:       count,
 		GeneratedAt: time.Now().UTC(),
 	})
 }

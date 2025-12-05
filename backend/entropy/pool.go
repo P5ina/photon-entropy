@@ -86,6 +86,17 @@ func (p *Pool) mixPool(hash []byte) {
 	}
 }
 
+// GetFloat64 returns a uniformly distributed float64 in [0, 1)
+func (p *Pool) GetFloat64() (float64, bool) {
+	bytes := p.GetBytes(8)
+	if bytes == nil {
+		return 0, false
+	}
+	// Use 53 bits for full float64 mantissa precision
+	raw := binary.BigEndian.Uint64(bytes)
+	return float64(raw>>11) / float64(1<<53), true
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a

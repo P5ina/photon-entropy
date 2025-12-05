@@ -13,6 +13,11 @@ struct ContentView: View {
                     Label("Generator", systemImage: "dice.fill")
                 }
 
+            NormalDistributionView()
+                .tabItem {
+                    Label("Distribution", systemImage: "chart.bar.xaxis")
+                }
+
             HistoryView()
                 .tabItem {
                     Label("History", systemImage: "clock.arrow.circlepath")

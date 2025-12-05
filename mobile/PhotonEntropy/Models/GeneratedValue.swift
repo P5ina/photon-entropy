@@ -45,3 +45,19 @@ struct StatsResponse: Codable {
         case entropyPoolSize = "entropy_pool_size"
     }
 }
+
+struct NormalDistributionResponse: Codable {
+    let values: [Double]
+    let mean: Double
+    let stdDev: Double
+    let count: Int
+    let generatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case values
+        case mean
+        case stdDev = "std_dev"
+        case count
+        case generatedAt = "generated_at"
+    }
+}

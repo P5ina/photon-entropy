@@ -13,6 +13,7 @@ import (
 	"github.com/P5ina/photon-entropy/db/sqlc"
 	"github.com/P5ina/photon-entropy/entropy"
 	"github.com/P5ina/photon-entropy/verifier"
+	"github.com/P5ina/photon-entropy/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -22,14 +23,16 @@ type EntropyHandler struct {
 	pool     *entropy.Pool
 	verifier *verifier.Verifier
 	config   *config.Config
+	hub      *ws.Hub
 }
 
-func NewEntropyHandler(q *sqlc.Queries, p *entropy.Pool, v *verifier.Verifier, cfg *config.Config) *EntropyHandler {
+func NewEntropyHandler(q *sqlc.Queries, p *entropy.Pool, v *verifier.Verifier, cfg *config.Config, hub *ws.Hub) *EntropyHandler {
 	return &EntropyHandler{
 		queries:  q,
 		pool:     p,
 		verifier: v,
 		config:   cfg,
+		hub:      hub,
 	}
 }
 
@@ -95,15 +98,23 @@ func (h *EntropyHandler) Submit(c *gin.Context) {
 		AverageQuality: sql.NullFloat64{Float64: avgQuality, Valid: true},
 	})
 
-	if result.Quality >= h.config.Entropy.MinQuality {
+	accepted := result.Quality >= h.config.Entropy.MinQuality
+	if accepted {
 		h.pool.Add(req.RawSamples)
+	}
+
+	// Broadcast WebSocket events
+	if h.hub != nil {
+		h.hub.BroadcastNewCommit(commitID, req.DeviceID, result.Quality, len(req.RawSamples), accepted, time.Now().UTC())
+		h.hub.BroadcastDeviceUpdate(req.DeviceID, true, time.Now().UTC(), count, avgQuality)
+		h.hub.BroadcastPoolUpdate(h.pool.Size(), h.pool.MaxSize())
 	}
 
 	c.JSON(http.StatusOK, SubmitResponse{
 		ID:       commitID,
 		Quality:  result.Quality,
 		Tests:    result.Tests,
-		Accepted: result.Quality >= h.config.Entropy.MinQuality,
+		Accepted: accepted,
 	})
 }
 

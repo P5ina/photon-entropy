@@ -13,6 +13,7 @@ import (
 	"github.com/P5ina/photon-entropy/entropy"
 	"github.com/P5ina/photon-entropy/handlers"
 	"github.com/P5ina/photon-entropy/verifier"
+	"github.com/P5ina/photon-entropy/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/pressly/goose/v3"
@@ -54,9 +55,14 @@ func main() {
 	pool := entropy.NewPool(cfg.Entropy.PoolSize)
 	v := verifier.New()
 
-	entropyHandler := handlers.NewEntropyHandler(queries, pool, v, cfg)
+	// Initialize WebSocket hub
+	hub := ws.NewHub()
+	go hub.Run()
+
+	entropyHandler := handlers.NewEntropyHandler(queries, pool, v, cfg, hub)
 	deviceHandler := handlers.NewDeviceHandler(queries, cfg)
 	statsHandler := handlers.NewStatsHandler(queries, pool)
+	wsHandler := handlers.NewWebSocketHandler(hub)
 
 	if env.GinMode == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -70,6 +76,9 @@ func main() {
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		})
 	})
+
+	// WebSocket endpoint
+	r.GET("/ws", wsHandler.Handle)
 
 	api := r.Group("/api/v1")
 	{

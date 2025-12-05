@@ -41,6 +41,10 @@ func (p *Pool) Size() int {
 	return len(p.data)
 }
 
+func (p *Pool) MaxSize() int {
+	return p.maxSize
+}
+
 func (p *Pool) GetBytes(n int) []byte {
 	p.mu.Lock()
 	defer p.mu.Unlock()

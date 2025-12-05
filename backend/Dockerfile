@@ -37,6 +37,6 @@ COPY db/migrations ./db/migrations
 # Create data directory
 RUN mkdir -p /app/data
 
-EXPOSE 8080
+EXPOSE 8082
 
 CMD ["./photon-entropy"]

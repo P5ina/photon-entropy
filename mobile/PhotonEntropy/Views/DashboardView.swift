@@ -20,6 +20,10 @@ struct DashboardView: View {
                     if let stats = viewModel.stats {
                         statsSection(stats)
                     }
+
+                    if !viewModel.recentCommits.isEmpty {
+                        recentCommitsSection
+                    }
                 }
                 .padding()
             }
@@ -43,6 +47,17 @@ struct DashboardView: View {
                 .foregroundStyle(.secondary)
 
             Spacer()
+
+            if viewModel.isWebSocketConnected {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 8, height: 8)
+                    Text("Live")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
+            }
 
             if viewModel.isLoading {
                 ProgressView()
@@ -138,6 +153,53 @@ struct DashboardView: View {
             return String(format: "%.1f KB", Double(bytes) / 1024)
         }
         return "\(bytes) B"
+    }
+
+    private var recentCommitsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Live Feed")
+                    .font(.headline)
+                Spacer()
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 6, height: 6)
+                    Text("Realtime")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            ForEach(viewModel.recentCommits, id: \.id) { commit in
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: commit.accepted ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(commit.accepted ? .green : .orange)
+                                .font(.caption)
+                            Text("\(commit.samples) samples")
+                                .font(.subheadline.weight(.medium))
+                        }
+                        Text(commit.deviceId)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    QualityBadge(quality: commit.quality)
+                }
+                .padding(.vertical, 8)
+
+                if commit.id != viewModel.recentCommits.last?.id {
+                    Divider()
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 

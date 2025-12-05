@@ -1,4 +1,6 @@
 import Foundation
+import UIKit
+import Combine
 
 enum GeneratorType: String, CaseIterable {
     case number = "Number"

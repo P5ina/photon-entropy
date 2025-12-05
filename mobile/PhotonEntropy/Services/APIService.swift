@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 enum APIError: LocalizedError {
     case invalidURL
@@ -30,7 +31,7 @@ enum APIError: LocalizedError {
 class APIService: ObservableObject {
     static let shared = APIService()
 
-    @Published var baseURL: String = "http://localhost:8080"
+    @Published var baseURL: String = "https://entropy.p5ina.dev"
 
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()

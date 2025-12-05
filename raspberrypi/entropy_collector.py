@@ -33,8 +33,7 @@ class EntropyCollector:
             self.adc = ADS.ADS1115(i2c, address=self.config.adc_address)
             self.adc.data_rate = self.config.sample_rate
 
-            channels = [ADS.P0, ADS.P1, ADS.P2, ADS.P3]
-            self.channel = AnalogIn(self.adc, channels[self.config.adc_channel])
+            self.channel = AnalogIn(self.adc, self.config.adc_channel)
 
             logger.info(f"ADC initialized at address 0x{self.config.adc_address:02x}, channel {self.config.adc_channel}")
         except Exception as e:

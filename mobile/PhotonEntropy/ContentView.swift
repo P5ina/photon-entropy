@@ -1,21 +1,28 @@
-//
-//  ContentView.swift
-//  PhotonEntropy
-//
-//  Created by Timur Turatbekov on 06.12.2025.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            DashboardView()
+                .tabItem {
+                    Label("Dashboard", systemImage: "gauge.with.dots.needle.bottom.50percent")
+                }
+
+            GeneratorView()
+                .tabItem {
+                    Label("Generator", systemImage: "dice.fill")
+                }
+
+            HistoryView()
+                .tabItem {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
+                }
         }
-        .padding()
     }
 }
 

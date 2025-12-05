@@ -1,0 +1,7 @@
+entropy:
+  min_samples: 100
+  min_quality: 0.5
+  pool_size: 4096
+
+device:
+  offline_timeout: 120  # seconds

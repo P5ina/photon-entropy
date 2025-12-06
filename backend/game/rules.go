@@ -21,7 +21,6 @@ func NewRuleGenerator(seed int64) *RuleGenerator {
 func (r *RuleGenerator) GenerateModules(count int) []Module {
 	modules := make([]Module, 0, count)
 
-	// Always include certain modules (keypad removed - no rotary encoder)
 	moduleTypes := []ModuleType{
 		ModuleWires,  // Cut wires in correct order
 		ModuleSimon,  // Color sequence - expert taps on mobile
@@ -52,8 +51,6 @@ func (r *RuleGenerator) generateModule(id string, modType ModuleType) Module {
 	switch modType {
 	case ModuleWires:
 		return r.generateWiresModule(id)
-	case ModuleKeypad:
-		return r.generateKeypadModule(id)
 	case ModuleSimon:
 		return r.generateSimonModule(id)
 	case ModuleMagnet:
@@ -164,30 +161,6 @@ func (r *RuleGenerator) determineCorrectWire(wireEnabled []bool) int {
 	}
 
 	return 0
-}
-
-// generateKeypadModule creates a Keypad module with a random code
-func (r *RuleGenerator) generateKeypadModule(id string) Module {
-	// Generate a 3-digit code
-	code := fmt.Sprintf("%d%d%d", r.rng.Intn(10), r.rng.Intn(10), r.rng.Intn(10))
-
-	config := map[string]interface{}{
-		"display_code": "_ _ _",
-		"current_code": "",
-		"code_length":  3,
-	}
-
-	solution := map[string]interface{}{
-		"correct_code": code,
-	}
-
-	return Module{
-		ID:       id,
-		Type:     ModuleKeypad,
-		State:    ModuleStateActive,
-		Config:   config,
-		Solution: solution,
-	}
 }
 
 // generateSimonModule creates a Simon Says module with a color sequence
@@ -340,18 +313,6 @@ func (r *RuleGenerator) getRulesForSet(ruleSet int) []string {
 		}
 	}
 	return []string{"Cut the first wire (leftmost)."}
-}
-
-// GetKeypadManual returns the manual/instructions for the Keypad module
-func (r *RuleGenerator) GetKeypadManual() []string {
-	// Generate the same code that generateKeypadModule produces
-	code := fmt.Sprintf("%d%d%d", r.rng.Intn(10), r.rng.Intn(10), r.rng.Intn(10))
-
-	return []string{
-		fmt.Sprintf("Enter the code: %s", code),
-		"Use the rotary encoder to select each digit.",
-		"Press the encoder button to confirm.",
-	}
 }
 
 // GetSimonManual returns the manual/instructions for the Simon module

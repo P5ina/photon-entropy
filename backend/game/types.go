@@ -20,7 +20,6 @@ type ModuleType string
 
 const (
 	ModuleWires  ModuleType = "wires"
-	ModuleKeypad ModuleType = "keypad"
 	ModuleSimon  ModuleType = "simon"
 	ModuleMagnet ModuleType = "magnet"
 )
@@ -90,18 +89,6 @@ type WiresConfig struct {
 // WiresSolution holds the solution for the Wires module
 type WiresSolution struct {
 	CorrectCuts []int `json:"correct_cuts"` // Indices of wires to cut (in order)
-}
-
-// KeypadConfig holds configuration for the Keypad module
-type KeypadConfig struct {
-	DisplayCode string `json:"display_code"` // What's shown on LCD (e.g., "_ _ _")
-	CurrentCode string `json:"current_code"` // What user has entered so far
-	CodeLength  int    `json:"code_length"`
-}
-
-// KeypadSolution holds the solution for the Keypad module
-type KeypadSolution struct {
-	CorrectCode string `json:"correct_code"`
 }
 
 // SimonConfig holds configuration for the Simon module

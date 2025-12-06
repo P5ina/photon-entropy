@@ -398,8 +398,6 @@ func (e *Engine) processModuleAction(game *Game, module *Module, action string, 
 	switch module.Type {
 	case ModuleWires:
 		return e.processWiresAction(module, action, value)
-	case ModuleKeypad:
-		return e.processKeypadAction(module, action, value)
 	case ModuleSimon:
 		return e.processSimonAction(module, action, value)
 	case ModuleMagnet:
@@ -491,80 +489,6 @@ func (e *Engine) processWiresAction(module *Module, action string, value interfa
 		Success: true,
 		Message: "correct wire cut",
 	}
-}
-
-// processKeypadAction handles code entry
-func (e *Engine) processKeypadAction(module *Module, action string, value interface{}) *ActionResult {
-	if action != "enter_digit" && action != "submit_code" {
-		return &ActionResult{Success: false, Message: "invalid action"}
-	}
-
-	correctCode, ok := module.Solution["correct_code"].(string)
-	if !ok {
-		return &ActionResult{Success: false, Message: "invalid solution"}
-	}
-
-	if action == "enter_digit" {
-		digit, ok := value.(string)
-		if !ok {
-			return &ActionResult{Success: false, Message: "invalid digit"}
-		}
-
-		currentCode, _ := module.Config["current_code"].(string)
-		codeLength, _ := module.Config["code_length"].(int)
-		if codeLength == 0 {
-			codeLength = 3
-		}
-
-		if len(currentCode) >= codeLength {
-			return &ActionResult{Success: false, Message: "code already complete"}
-		}
-
-		currentCode += digit
-		module.Config["current_code"] = currentCode
-		module.Config["display_code"] = formatCodeDisplay(currentCode, codeLength)
-
-		return &ActionResult{
-			Success: true,
-			Message: fmt.Sprintf("digit entered: %s", digit),
-		}
-	}
-
-	// submit_code
-	currentCode, _ := module.Config["current_code"].(string)
-
-	if currentCode == correctCode {
-		return &ActionResult{
-			Success: true,
-			Solved:  true,
-			Message: "correct code",
-		}
-	}
-
-	// Wrong code - reset and strike
-	module.Config["current_code"] = ""
-	module.Config["display_code"] = "_ _ _"
-
-	return &ActionResult{
-		Success: true,
-		Strike:  true,
-		Message: "incorrect code",
-	}
-}
-
-func formatCodeDisplay(code string, length int) string {
-	display := ""
-	for i := 0; i < length; i++ {
-		if i < len(code) {
-			display += string(code[i])
-		} else {
-			display += "_"
-		}
-		if i < length-1 {
-			display += " "
-		}
-	}
-	return display
 }
 
 // processSimonAction handles Simon Says input (expert taps colors on mobile)

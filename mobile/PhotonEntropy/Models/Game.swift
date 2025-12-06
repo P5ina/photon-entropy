@@ -102,7 +102,6 @@ struct ManualResponse: Codable {
 
 struct GameManual: Codable {
     let wires: [String]
-    let keypad: [String]
     let simon: [String]
     let magnet: [String]
 }

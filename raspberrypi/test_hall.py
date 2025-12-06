@@ -4,13 +4,14 @@
 Usage:
     python test_hall.py           # Test Hall sensor
     python test_hall.py --mock    # Run in mock mode
+    python test_hall.py --raw     # Show raw pin values continuously
 """
 
 import argparse
 import time
 
 try:
-    from gpiozero import Button
+    from gpiozero import DigitalInputDevice
     HAS_GPIO = True
     GPIO_LIB = "gpiozero"
 except ImportError:
@@ -22,7 +23,7 @@ except ImportError:
 from config import Config
 
 
-def test_hall(config: Config, mock: bool = False):
+def test_hall(config: Config, mock: bool = False, raw: bool = False):
     """Test the Hall effect sensor."""
     print("=" * 50)
     print("HALL SENSOR TEST (MAGNET MODULE)")
@@ -37,34 +38,51 @@ def test_hall(config: Config, mock: bool = False):
         return
 
     print(f"GPIO Library: {GPIO_LIB}")
-    print("\nBring a magnet close to the sensor. Press Ctrl+C to exit.\n")
+    print("\nKY-003 Hall sensor: outputs LOW when magnet detected (active LOW)")
+    print("Bring a magnet close to the sensor. Press Ctrl+C to exit.\n")
 
-    # Hall sensor is active LOW (outputs LOW when magnet detected)
-    hall = Button(hall_pin, pull_up=True)
+    # Use DigitalInputDevice for clearer control
+    # pull_up=True provides internal pull-up resistor
+    # The sensor pulls LOW when magnet is detected
+    hall = DigitalInputDevice(hall_pin, pull_up=True, bounce_time=0.05)
     magnet_count = 0
+    last_value = None
 
-    def on_magnet_detected():
+    def on_activated():
+        # DigitalInputDevice fires when_activated when value goes HIGH
+        print(f"    Magnet removed (pin went HIGH)")
+
+    def on_deactivated():
+        # Fires when value goes LOW - magnet detected!
         nonlocal magnet_count
         magnet_count += 1
-        print(f"  ✓ MAGNET DETECTED! (count: {magnet_count})")
+        print(f"  ✓ MAGNET DETECTED! (pin went LOW, count: {magnet_count})")
 
-    def on_magnet_removed():
-        print(f"    Magnet removed")
+    hall.when_activated = on_activated
+    hall.when_deactivated = on_deactivated
 
-    hall.when_pressed = on_magnet_detected
-    hall.when_released = on_magnet_removed
-
-    print("-" * 50)
-    print("Waiting for magnet...")
     print("-" * 50)
 
     # Show initial state
-    if hall.is_pressed:
-        print("  [!] Magnet already present at start")
+    initial_value = hall.value
+    print(f"Initial pin value: {initial_value} ({'HIGH - no magnet' if initial_value else 'LOW - magnet present!'})")
+
+    if raw:
+        print("\nRAW MODE: Showing continuous pin values...")
+        print("-" * 50)
+    else:
+        print("Waiting for magnet...")
+        print("-" * 50)
 
     try:
         while True:
-            time.sleep(0.1)
+            if raw:
+                current = hall.value
+                if current != last_value:
+                    status = "HIGH (no magnet)" if current else "LOW (MAGNET!)"
+                    print(f"  Pin value: {current} - {status}")
+                    last_value = current
+            time.sleep(0.05)
     except KeyboardInterrupt:
         print(f"\n\nTest ended. Total magnet detections: {magnet_count}")
     finally:
@@ -74,12 +92,13 @@ def test_hall(config: Config, mock: bool = False):
 def main():
     parser = argparse.ArgumentParser(description="Test Hall sensor for Bomb Defusal game")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode")
+    parser.add_argument("--raw", action="store_true", help="Show raw pin values continuously")
     args = parser.parse_args()
 
     config = Config.from_env()
     mock = args.mock or not HAS_GPIO
 
-    test_hall(config, mock)
+    test_hall(config, mock, raw=args.raw)
 
 
 if __name__ == "__main__":

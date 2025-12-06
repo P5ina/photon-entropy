@@ -79,6 +79,10 @@ class GameService: ObservableObject {
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errorMessage = errorJson["error"] as? String {
+                throw APIError.message("Join failed: \(errorMessage)")
+            }
             throw APIError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
         }
 

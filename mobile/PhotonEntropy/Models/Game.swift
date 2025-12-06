@@ -88,16 +88,6 @@ struct MagnetConfig: Codable {
     }
 }
 
-struct StabilityConfig: Codable {
-    let maxTilts: Int
-    let stableDuration: Int
-
-    enum CodingKeys: String, CodingKey {
-        case maxTilts = "max_tilts"
-        case stableDuration = "stable_duration"
-    }
-}
-
 // MARK: - Manual (Instructions for Expert)
 
 struct GameManual: Codable {
@@ -105,7 +95,6 @@ struct GameManual: Codable {
     let keypad: KeypadManual
     let simon: SimonManual
     let magnet: MagnetManual
-    let stability: StabilityManual
 }
 
 struct WiresManual: Codable {
@@ -150,17 +139,6 @@ struct MagnetManual: Codable {
     enum CodingKeys: String, CodingKey {
         case safeZones = "safe_zones"
         case required, hints
-    }
-}
-
-struct StabilityManual: Codable {
-    let maxTilts: Int
-    let duration: Int
-    let tips: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case maxTilts = "max_tilts"
-        case duration, tips
     }
 }
 

@@ -19,11 +19,10 @@ const (
 type ModuleType string
 
 const (
-	ModuleWires     ModuleType = "wires"
-	ModuleKeypad    ModuleType = "keypad"
-	ModuleSimon     ModuleType = "simon"
-	ModuleMagnet    ModuleType = "magnet"
-	ModuleStability ModuleType = "stability"
+	ModuleWires  ModuleType = "wires"
+	ModuleKeypad ModuleType = "keypad"
+	ModuleSimon  ModuleType = "simon"
+	ModuleMagnet ModuleType = "magnet"
 )
 
 // ModuleState represents the state of a module
@@ -126,12 +125,6 @@ type MagnetConfig struct {
 // MagnetSolution holds the solution for the Magnet module
 type MagnetSolution struct {
 	SafeConditions map[string]interface{} `json:"safe_conditions"`
-}
-
-// StabilityConfig holds configuration for the Stability module
-type StabilityConfig struct {
-	TiltDetected bool `json:"tilt_detected"` // Has tilt been detected
-	Sensitivity  int  `json:"sensitivity"`   // How sensitive (1-10)
 }
 
 // GameEvent represents an event that occurred in the game

@@ -23,16 +23,14 @@ func (r *RuleGenerator) GenerateModules(count int) []Module {
 
 	// Always include certain modules
 	moduleTypes := []ModuleType{
-		ModuleWires,    // Always first - it's the most iconic
-		ModuleKeypad,   // Code entry
-		ModuleSimon,    // Memory game
-		ModuleMagnet,   // Timing puzzle
-		ModuleStability, // Background module - always active
+		ModuleWires,  // Always first - it's the most iconic
+		ModuleKeypad, // Code entry
+		ModuleSimon,  // Memory game
+		ModuleMagnet, // Timing puzzle
 	}
 
-	// Shuffle module order (except stability which is always background)
-	mainModules := moduleTypes[:4]
-	r.shuffleModuleTypes(mainModules)
+	// Shuffle module order
+	r.shuffleModuleTypes(moduleTypes)
 
 	// Take requested number of modules
 	for i := 0; i < count && i < len(moduleTypes); i++ {
@@ -61,8 +59,6 @@ func (r *RuleGenerator) generateModule(id string, modType ModuleType) Module {
 		return r.generateSimonModule(id)
 	case ModuleMagnet:
 		return r.generateMagnetModule(id)
-	case ModuleStability:
-		return r.generateStabilityModule(id)
 	default:
 		return Module{ID: id, Type: modType, State: ModuleStateActive}
 	}
@@ -271,27 +267,6 @@ func (r *RuleGenerator) generateMagnetModule(id string) Module {
 	}
 }
 
-// generateStabilityModule creates a Stability module (tilt detection)
-func (r *RuleGenerator) generateStabilityModule(id string) Module {
-	sensitivity := 5 + r.rng.Intn(3) // 5-7 sensitivity
-
-	config := map[string]interface{}{
-		"tilt_detected": false,
-		"sensitivity":   sensitivity,
-	}
-
-	// No solution needed - any tilt is a strike
-	solution := map[string]interface{}{}
-
-	return Module{
-		ID:       id,
-		Type:     ModuleStability,
-		State:    ModuleStateActive,
-		Config:   config,
-		Solution: solution,
-	}
-}
-
 // GetWiresManual returns the manual/instructions for the Wires module
 func (r *RuleGenerator) GetWiresManual() []string {
 	ruleSet := r.rng.Intn(4)
@@ -361,27 +336,15 @@ func (r *RuleGenerator) GetMagnetManual() []string {
 	}
 }
 
-// GetStabilityManual returns the manual/instructions for the Stability module
-func (r *RuleGenerator) GetStabilityManual() []string {
-	return []string{
-		"WARNING: STABILITY MONITOR ACTIVE",
-		"The bomb has a tilt sensor.",
-		"Any sudden movement or tilting will register a STRIKE.",
-		"Handle the bomb with care at all times!",
-		"This module cannot be 'solved' - it monitors throughout the game.",
-	}
-}
-
 // GetFullManual returns the complete manual for all modules
 func (r *RuleGenerator) GetFullManual() map[string][]string {
 	// Reset RNG to ensure consistent manual generation
 	r.rng = rand.New(rand.NewSource(r.rng.Int63()))
 
 	return map[string][]string{
-		"wires":     r.GetWiresManual(),
-		"keypad":    r.GetKeypadManual(),
-		"simon":     r.GetSimonManual(),
-		"magnet":    r.GetMagnetManual(),
-		"stability": r.GetStabilityManual(),
+		"wires":  r.GetWiresManual(),
+		"keypad": r.GetKeypadManual(),
+		"simon":  r.GetSimonManual(),
+		"magnet": r.GetMagnetManual(),
 	}
 }

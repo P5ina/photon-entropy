@@ -30,8 +30,8 @@ This document lists all hardware components required to build the physical "bomb
 | Button 3 (Blue) | - | GPIO 21 | Tactile button |
 | Button 4 (Yellow) | - | GPIO 20 | Tactile button |
 | LED 1 (Red) | - | GPIO 25 | Wire color indicator |
-| LED 2 (Green) | - | GPIO 8 | Wire color indicator |
-| LED 3 (Blue) | - | GPIO 7 | Wire color indicator |
+| LED 2 (Blue) | - | GPIO 8 | Wire color indicator |
+| LED 3 (Green) | - | GPIO 7 | Wire color indicator |
 | LED 4 (Yellow) | - | GPIO 1 | Wire color indicator |
 
 > These are additional components — not from the KY kit. See Shopping List below.
@@ -56,12 +56,6 @@ This document lists all hardware components required to build the physical "bomb
 | Hall Sensor | KY-003 or KY-024 | GPIO 16 | Detects magnet proximity |
 | Magnet | - | - | Any small magnet as "key" |
 
-### Module: STABILITY (tilt detection)
-
-| Component | KY Module | GPIO | Description |
-|-----------|-----------|------|-------------|
-| Tilt Sensor | KY-017 or KY-020 | GPIO 24 | Detects shaking/tilting |
-
 ### Output: Feedback
 
 | Component | KY Module | GPIO | Description |
@@ -84,7 +78,7 @@ Raspberry Pi GPIO Layout
          RGB Red   GPIO17 [11] [12] GPIO18  ← Buzzer (PWM)
         RGB Green  GPIO27 [13] [14] GND
          RGB Blue  GPIO22 [15] [16] GPIO23
-                    3.3V  [17] [18] GPIO24  ← Tilt Sensor
+                    3.3V  [17] [18] GPIO24
                    GPIO10 [19] [20] GND
                    GPIO9  [21] [22] GPIO25  ← LED 1 (Red)
                    GPIO11 [23] [24] GPIO7   ← LED 3 (Blue)
@@ -96,6 +90,9 @@ Raspberry Pi GPIO Layout
         Button 1   GPIO19 [35] [36] GPIO16  ← Hall Sensor
         Button 2   GPIO26 [37] [38] GPIO20  ← Button 4
                     GND   [39] [40] GPIO21  ← Button 3
+─────────────────────────────────────────────────────
+
+Note: GPIO 24 (Tilt Sensor) is no longer used.
 ─────────────────────────────────────────────────────
 
 I2C Devices:
@@ -135,7 +132,6 @@ PWM Pins (for RGB LED):
 | KY-016 RGB LED | ✓ |
 | KY-036 Touch Sensor | ✓ |
 | KY-003 Hall Sensor | ✓ |
-| KY-017 Tilt Sensor | ✓ |
 | KY-012 Buzzer | ✓ |
 
 ---
@@ -231,16 +227,6 @@ VCC  ─────────────► 3.3V
 SIG  ─────────────► GPIO 16
 ```
 
-### Tilt Sensor (KY-017)
-
-```
-KY-017          Raspberry Pi
-─────────────────────────────────
-GND  ─────────────► GND
-VCC  ─────────────► 3.3V
-SIG  ─────────────► GPIO 24
-```
-
 ---
 
 ## Power Requirements
@@ -271,7 +257,6 @@ Before assembling the full setup, test each component individually:
 - [ ] Buzzer produces sound on GPIO 18
 - [ ] Touch sensor detects finger
 - [ ] Hall sensor detects magnet
-- [ ] Tilt sensor changes state when tilted
 
 ### Test Commands
 

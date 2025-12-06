@@ -49,15 +49,6 @@ struct ModuleListView: View {
                     ) {
                         MagnetInstructionsView(manual: manual.magnet)
                     }
-
-                    ModuleCard(
-                        title: "Stability",
-                        icon: "level",
-                        color: .green,
-                        isSolved: viewModel.game?.modules["stability"]?.solved ?? false
-                    ) {
-                        StabilityInstructionsView(manual: manual.stability)
-                    }
                 } else {
                     ProgressView("Loading instructions...")
                         .padding()
@@ -325,52 +316,6 @@ struct MagnetInstructionsView: View {
                     HStack(alignment: .top) {
                         Text("•")
                         Text(hint)
-                            .font(.subheadline)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Stability Instructions
-
-struct StabilityInstructionsView: View {
-    let manual: StabilityManual
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text("Max Tilts")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(manual.maxTilts)")
-                        .font(.title2.bold())
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing) {
-                    Text("Stable Duration")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(manual.duration)s")
-                        .font(.title2.bold())
-                }
-            }
-
-            if !manual.tips.isEmpty {
-                Divider()
-
-                Text("TIPS:")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-
-                ForEach(manual.tips, id: \.self) { tip in
-                    HStack(alignment: .top) {
-                        Text("•")
-                        Text(tip)
                             .font(.subheadline)
                     }
                 }

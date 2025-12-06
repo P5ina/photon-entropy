@@ -99,7 +99,6 @@ Expert reads instructions → Defuser solves modules → Win/Lose
   - `keypad.py` - Enter code with rotary encoder
   - `simon.py` - Simon Says color sequence
   - `magnet.py` - Apply magnet at correct timing
-  - `stability.py` - Keep device stable
 - `network/` - Server communication
   - `ws_client.py` - WebSocket client
 
@@ -122,7 +121,6 @@ Expert reads instructions → Defuser solves modules → Win/Lose
 | Keypad | Rotary encoder | Enter numeric code (0-9 digits) |
 | Simon | RGB LED + Touch | Repeat color sequence |
 | Magnet | Hall sensor | Apply magnet during safe time windows |
-| Stability | Tilt sensor | Keep device stable for duration |
 
 ## API Endpoints
 
@@ -168,7 +166,6 @@ See `docs/HARDWARE.md` for complete wiring diagram.
 | RGB LED | R:17, G:27, B:22 |
 | Touch sensor | 12 |
 | Hall sensor | 16 |
-| Tilt sensor | 24 |
 | Buzzer | 18 |
 | LCD | I2C (0x27) |
 

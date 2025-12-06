@@ -23,7 +23,7 @@
 ### Файлы
 
 - `game/engine.go` — State machine, таймер
-- `game/modules.go` — Определения модулей (Wires, Keypad, Simon, Magnet, Stability)
+- `game/modules.go` — Определения модулей (Wires, Keypad, Simon, Magnet)
 - `game/rules.go` — Генератор правил на основе seed
 - `handlers/game.go` — HTTP endpoints
 - `ws/hub.go` — WebSocket hub (уже есть, расширить)
@@ -412,17 +412,6 @@ R=1, B=2, W=3, O=4
 Если поднести в другое время → strike
 ```
 
-### Stability Module (фоновый)
-
-**Визуал:**
-- Нет визуала, tilt sensor всегда активен
-
-**Правила:**
-```
-Любой наклон бомбы → strike
-Предупреждение на экране эксперта
-```
-
 ---
 
 ## Этап 5: Тестирование
@@ -470,9 +459,6 @@ TOUCH_PIN = 12
 
 # Magnet module
 HALL_PIN = 16
-
-# Stability module
-TILT_PIN = 24
 
 # Output
 BUZZER_PIN = 18

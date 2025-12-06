@@ -43,7 +43,6 @@
 | **Keypad** | Rotary encoder | Введи 3-значный код |
 | **Simon** | RGB LED + Touch | Повтори последовательность цветов |
 | **Magnet** | Hall sensor | Поднеси магнит в нужный момент |
-| **Stability** | Tilt sensor | Не тряси бомбу! |
 
 ## Архитектура
 
@@ -107,8 +106,7 @@ photon-entropy/
 │   │   ├── wires.py             # Wires module
 │   │   ├── keypad.py            # Keypad module
 │   │   ├── simon.py             # Simon Says module
-│   │   ├── magnet.py            # Magnet module
-│   │   └── stability.py         # Tilt detection
+│   │   └── magnet.py            # Magnet module
 │   └── network/
 │       └── ws_client.py         # WebSocket client
 │
@@ -170,7 +168,6 @@ photon-entropy/
 | KY-016 RGB LED | Модуль "Simon" + статус |
 | KY-036 Touch Sensor | Ввод для Simon |
 | KY-003 Hall Sensor | Модуль "Magnet" |
-| KY-017 Tilt Sensor | Модуль "Stability" |
 | KY-012 Buzzer | Звуковые эффекты |
 
 ## Быстрый старт
@@ -216,7 +213,6 @@ ROTARY_SW = 13
 RGB_PINS = {"r": 17, "g": 27, "b": 22}
 TOUCH_PIN = 12
 HALL_PIN = 16
-TILT_PIN = 24
 BUZZER_PIN = 18
 ```
 

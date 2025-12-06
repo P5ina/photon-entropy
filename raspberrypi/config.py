@@ -30,9 +30,6 @@ class Config:
     # GPIO pins - Magnet module (Hall sensor)
     hall_pin: int = 16
 
-    # GPIO pins - Stability module (tilt sensor)
-    tilt_pin: int = 24
-
     # GPIO pins - Output
     buzzer_pin: int = 18
 

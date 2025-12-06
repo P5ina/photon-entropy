@@ -377,8 +377,6 @@ func (e *Engine) processModuleAction(game *Game, module *Module, action string, 
 		return e.processSimonAction(module, action, value)
 	case ModuleMagnet:
 		return e.processMagnetAction(module, action, value)
-	case ModuleStability:
-		return e.processStabilityAction(module, action, value)
 	default:
 		return &ActionResult{Success: false, Message: "unknown module type"}
 	}
@@ -638,28 +636,9 @@ func (e *Engine) processMagnetAction(module *Module, action string, value interf
 	}
 }
 
-// processStabilityAction handles tilt detection
-func (e *Engine) processStabilityAction(module *Module, action string, value interface{}) *ActionResult {
-	if action != "tilt_detected" {
-		return &ActionResult{Success: false, Message: "invalid action"}
-	}
-
-	module.Config["tilt_detected"] = true
-
-	return &ActionResult{
-		Success: true,
-		Strike:  true,
-		Message: "stability compromised",
-	}
-}
-
 // allModulesSolved checks if all solvable modules are solved
 func (e *Engine) allModulesSolved(game *Game) bool {
 	for _, module := range game.Modules {
-		// Stability module doesn't need to be solved
-		if module.Type == ModuleStability {
-			continue
-		}
 		if module.State != ModuleStateSolved {
 			return false
 		}

@@ -11,7 +11,6 @@ from modules import (
     KeypadModule,
     SimonModule,
     MagnetModule,
-    StabilityModule,
     ModuleState,
 )
 from network.ws_client import GameClient
@@ -62,14 +61,12 @@ class GameController:
             mock=self.mock
         )
         self.magnet = MagnetModule(config.hall_pin, mock=self.mock)
-        self.stability = StabilityModule(config.tilt_pin, mock=self.mock)
 
         self.modules = {
             "wires": self.wires,
             "keypad": self.keypad,
             "simon": self.simon,
             "magnet": self.magnet,
-            "stability": self.stability,
         }
 
         # Network

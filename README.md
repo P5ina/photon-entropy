@@ -1,98 +1,88 @@
-# PhotonEntropy
+# PhotonEntropy — Bomb Defusal Game
 
-Сервис генерации доказуемо честного рандома на основе аппаратного генератора случайных чисел (HRNG).
+Кооперативная игра на разминирование бомбы с реальными датчиками. Один игрок (Сапёр) взаимодействует с физической "бомбой", второй (Эксперт) читает инструкции с телефона.
 
 **Курсовая работа** — Mobile & IoT
 
-## Обзор
+## Концепция
 
-PhotonEntropy использует физический шум фоторезистора как источник криптографически качественной энтропии. Система состоит из трёх компонентов:
+Вдохновлено игрой "Keep Talking and Nobody Explodes", но с реальным hardware.
 
 ```
 ┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
-│   Raspberry Pi   │       │    Go Backend    │       │   Mobile App     │
+│   Raspberry Pi   │       │    Go Backend    │       │   iOS App        │
+│   "THE BOMB"     │       │   Game Engine    │       │   "EXPERT"       │
 │                  │       │                  │       │                  │
-│  ┌────────────┐  │       │  ┌────────────┐  │       │  ┌────────────┐  │
-│  │ ADS1115    │  │ HTTP  │  │ Verifier   │  │ HTTP  │  │ Dashboard  │  │
-│  │ + фоторез. │──┼──────▶│  │ + Storage  │◀─┼──────▶│  │ + Generator│  │
-│  └────────────┘  │       │  └────────────┘  │       │  └────────────┘  │
-│                  │       │                  │       │                  │
-│  Сбор энтропии   │       │  API + SQLite    │       │  Swift/SwiftUI   │
+│  ┌────────────┐  │  WS   │  ┌────────────┐  │  WS   │  ┌────────────┐  │
+│  │ Sensors    │  │◀─────▶│  │ Game State │  │◀─────▶│  │ Manual     │  │
+│  │ LCD 16x2   │  │       │  │ Rules Gen  │  │       │  │ Instructions│  │
+│  │ LEDs/Buzzer│  │       │  └────────────┘  │       │  └────────────┘  │
+│  └────────────┘  │       │                  │       │                  │
+│                  │       │  SQLite + API    │       │  Swift/SwiftUI   │
+│  DEFUSER plays   │       │                  │       │  EXPERT reads    │
 └──────────────────┘       └──────────────────┘       └──────────────────┘
 ```
 
-## Возможности
+## Игровой процесс
 
-### IoT устройство (Raspberry Pi)
-- Сбор энтропии с фоторезистора через ADS1115 (16-bit АЦП)
-- Автоматическая фильтрация по освещённости (сбор только в темноте)
-- Статистические тесты качества перед отправкой
-- Периодическая отправка данных на бэкенд
+1. **Эксперт** создаёт игру в приложении
+2. **Сапёр** подключает "бомбу" (Raspberry Pi)
+3. Сервер генерирует случайные модули и правила
+4. **Таймер запускается** — у команды 5 минут
+5. **Эксперт** видит инструкции, но НЕ видит бомбу
+6. **Сапёр** видит бомбу, но НЕ видит инструкции
+7. Игроки общаются голосом, решают головоломки
+8. 3 ошибки (strikes) = взрыв
+9. Все модули решены до истечения времени = победа!
 
-### Backend (Go)
-- Приём и верификация энтропии от устройств
-- 4 статистических теста качества (Frequency, Runs, Chi-Square, Variance)
-- Хранение истории в SQLite
-- REST API для мобильного приложения
-- Генерация случайных чисел, паролей, UUID
+## Модули
 
-### Mobile (Swift/SwiftUI)
-- Дашборд статуса IoT устройства
-- Генератор случайных чисел и паролей
-- История коммитов с визуализацией качества
-- График энтропии в реальном времени
+| Модуль | Датчики | Механика |
+|--------|---------|----------|
+| **Wires** | 4 кнопки + 4 LED | "Перережь" правильные провода |
+| **Keypad** | Rotary encoder | Введи 3-значный код |
+| **Simon** | RGB LED + Touch | Повтори последовательность цветов |
+| **Magnet** | Hall sensor | Поднеси магнит в нужный момент |
+| **Stability** | Tilt sensor | Не тряси бомбу! |
 
 ## Архитектура
 
 ### API Endpoints
 
 ```
-IoT → Backend:
-  POST /api/v1/entropy/submit     Отправка сырых данных
+Game Flow:
+  POST /api/v1/game/create        Создать новую игру
+  POST /api/v1/game/join          Присоединиться (bomb/expert)
+  POST /api/v1/game/start         Запустить таймер
+  GET  /api/v1/game/state         Текущее состояние
+  GET  /api/v1/game/manual        Инструкции для эксперта
 
-Mobile → Backend:
-  GET  /api/v1/entropy/random     Получить случайное число
-  GET  /api/v1/entropy/password   Сгенерировать пароль
-  GET  /api/v1/entropy/uuid       Сгенерировать UUID
-  GET  /api/v1/device/status      Статус IoT устройства
-  GET  /api/v1/device/history     История коммитов
-  GET  /api/v1/stats              Общая статистика
+Actions:
+  POST /api/v1/game/action        Действие от бомбы
+
+WebSocket:
+  GET  /ws                        Real-time updates
 
 Health:
-  GET  /health                    Проверка состояния сервера
+  GET  /health                    Проверка сервера
 ```
 
-### Модели данных
+### WebSocket Events
 
-```go
-// Коммит энтропии от устройства
-type EntropyCommit struct {
-    ID            string    `json:"id"`
-    DeviceID      string    `json:"device_id"`
-    RawSamples    []int     `json:"raw_samples"`
-    Timestamps    []int64   `json:"timestamps"`
-    Quality       float64   `json:"quality"`
-    TestResults   Tests     `json:"test_results"`
-    CreatedAt     time.Time `json:"created_at"`
-}
+```
+bomb → server:
+  module_action { module_id, action, value }
 
-// Результаты тестов
-type Tests struct {
-    Frequency  TestResult `json:"frequency"`
-    Runs       TestResult `json:"runs"`
-    ChiSquare  TestResult `json:"chi_square"`
-    Variance   TestResult `json:"variance"`
-}
+server → expert:
+  game_state { time_left, strikes, modules_solved }
+  module_update { module_id, state }
+  game_over { win: bool, reason: string }
 
-// Статус устройства
-type DeviceStatus struct {
-    DeviceID        string    `json:"device_id"`
-    IsOnline        bool      `json:"is_online"`
-    LastSeen        time.Time `json:"last_seen"`
-    TotalCommits    int       `json:"total_commits"`
-    AverageQuality  float64   `json:"average_quality"`
-    EntropyPool     int       `json:"entropy_pool_size"`
-}
+server → bomb:
+  game_start { modules, time_limit, seed }
+  action_result { module_id, success, message }
+  strike { count, reason }
+  game_over { win: bool }
 ```
 
 ## Структура проекта
@@ -101,198 +91,156 @@ type DeviceStatus struct {
 photon-entropy/
 ├── README.md
 ├── docs/
-│   └── IMPLEMENTATION.md
+│   ├── HARDWARE.md              # Список компонентов и схемы
+│   └── IMPLEMENTATION.md        # План разработки
 │
-├── iot/                          # Raspberry Pi
+├── raspberrypi/                 # "Бомба"
 │   ├── requirements.txt
 │   ├── config.py
-│   ├── entropy_collector.py      # Сбор с АЦП
-│   ├── entropy_tester.py         # Статистические тесты
-│   ├── api_client.py             # HTTP клиент
-│   └── main.py                   # Точка входа
+│   ├── main.py                  # Game loop
+│   ├── hardware/
+│   │   ├── lcd.py               # LCD 16x2 I2C driver
+│   │   ├── buzzer.py            # Sound effects
+│   │   └── rgb_led.py           # Status LED
+│   ├── modules/
+│   │   ├── base.py              # Base module class
+│   │   ├── wires.py             # Wires module
+│   │   ├── keypad.py            # Keypad module
+│   │   ├── simon.py             # Simon Says module
+│   │   ├── magnet.py            # Magnet module
+│   │   └── stability.py         # Tilt detection
+│   └── network/
+│       └── ws_client.py         # WebSocket client
 │
-├── backend/                      # Go сервер
+├── backend/                     # Game server
 │   ├── Dockerfile
 │   ├── compose.yml
-│   ├── go.mod
-│   ├── go.sum
 │   ├── main.go
-│   ├── sqlc.yaml                 # Конфигурация sqlc
 │   ├── config/
-│   │   └── config.go
 │   ├── db/
-│   │   ├── migrations/           # Goose миграции
-│   │   │   ├── 001_init.sql
-│   │   │   └── 002_add_indexes.sql
-│   │   ├── queries/              # SQL запросы для sqlc
-│   │   │   ├── commits.sql
-│   │   │   └── devices.sql
-│   │   └── sqlc/                 # Сгенерированный код
-│   │       ├── db.go
-│   │       ├── models.go
-│   │       ├── commits.sql.go
-│   │       └── devices.sql.go
+│   │   ├── migrations/
+│   │   ├── queries/
+│   │   └── sqlc/
 │   ├── handlers/
-│   │   ├── entropy.go            # Приём/выдача энтропии
-│   │   ├── device.go             # Статус устройств
-│   │   └── stats.go              # Статистика
-│   ├── verifier/
-│   │   ├── verifier.go           # Главный верификатор
-│   │   └── tests.go              # Реализация тестов
-│   └── entropy/
-│       └── pool.go               # Пул энтропии
+│   │   ├── game.go              # Game endpoints
+│   │   └── websocket.go         # WebSocket handler
+│   ├── game/
+│   │   ├── engine.go            # Game state machine
+│   │   ├── modules.go           # Module definitions
+│   │   └── rules.go             # Rule generation
+│   └── ws/
+│       └── hub.go               # WebSocket hub
 │
-└── mobile/                       # iOS приложение
+└── mobile/                      # Expert app
     └── PhotonEntropy/
         ├── PhotonEntropyApp.swift
         ├── Models/
-        │   ├── EntropyCommit.swift
-        │   └── DeviceStatus.swift
+        │   ├── Game.swift
+        │   └── Module.swift
         ├── Services/
-        │   └── APIService.swift
+        │   ├── GameService.swift
+        │   └── WebSocketService.swift
         ├── ViewModels/
-        │   ├── DashboardViewModel.swift
-        │   └── GeneratorViewModel.swift
+        │   ├── LobbyViewModel.swift
+        │   └── GameViewModel.swift
         └── Views/
-            ├── DashboardView.swift
-            ├── GeneratorView.swift
-            ├── HistoryView.swift
-            └── Components/
-                ├── QualityBadge.swift
-                └── EntropyChart.swift
+            ├── LobbyView.swift      # Create/join game
+            ├── GameView.swift       # Main game screen
+            ├── ManualView.swift     # Instructions
+            └── Modules/
+                ├── WiresManualView.swift
+                ├── KeypadManualView.swift
+                ├── SimonManualView.swift
+                └── MagnetManualView.swift
 ```
 
-## Аппаратные требования
+## Hardware
 
-### Компоненты
+Полный список компонентов: [docs/HARDWARE.md](docs/HARDWARE.md)
 
-| Компонент | Описание | Примерная цена |
-|-----------|----------|----------------|
-| Raspberry Pi | Любая модель с I2C | $35-55 |
-| ADS1115 | 16-bit АЦП модуль | $3-5 |
-| Фоторезистор | GL5528 или аналог | $0.5 |
-| Резистор 10kΩ | Делитель напряжения | $0.1 |
-| Провода | Dupont jumper | $2 |
+### Основные компоненты
 
-### Схема подключения
-
-```
-Raspberry Pi            ADS1115                 Датчик
-     │                     │                       │
- 3.3V├─────────────────────┤VDD                    │
-     │                     │           ┌───────────┤
-  SDA├─────────────────────┤SDA        │    Фоторезистор
-     │                     │           │           │
-  SCL├─────────────────────┤SCL        │     ┌─────┴─────┐
-     │                     │           │     │           │
-  GND├─────────────────────┤GND        │     │  10kΩ     │
-     │                     │           │     │           │
-     │                  A0 ├───────────┴─────┴───────────┤
-     │                     │                             │
-     │                 GND ├─────────────────────────────┘
-```
+| Компонент | Описание |
+|-----------|----------|
+| Raspberry Pi 4/5 | Контроллер "бомбы" |
+| LCD 16x2 I2C | Таймер и подсказки |
+| 4× Tactile Button | Модуль "Wires" |
+| 4× LED (R, B, W, O) | Индикаторы проводов |
+| KY-040 Rotary Encoder | Модуль "Keypad" |
+| KY-016 RGB LED | Модуль "Simon" + статус |
+| KY-036 Touch Sensor | Ввод для Simon |
+| KY-003 Hall Sensor | Модуль "Magnet" |
+| KY-017 Tilt Sensor | Модуль "Stability" |
+| KY-012 Buzzer | Звуковые эффекты |
 
 ## Быстрый старт
 
-### 1. Backend (Docker)
+### 1. Backend
 
 ```bash
 cd backend
-
-# Запуск с docker-compose
 docker-compose up -d
-
-# Или вручную
-docker build -t photon-entropy .
-docker run -p 8080:8080 -v $(pwd)/data:/app/data photon-entropy
-```
-
-Сервер запустится на `http://localhost:8080`
-
-### Разработка (без Docker)
-
-```bash
-cd backend
-
-# Установка инструментов
-go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-go install github.com/pressly/goose/v3/cmd/goose@latest
-
-# Миграции
-goose -dir db/migrations sqlite3 ./data/photon.db up
-
-# Генерация sqlc
-sqlc generate
-
-# Запуск
+# или
 go run main.go
 ```
 
-### 2. IoT устройство
+Сервер: `http://localhost:8080`
+
+### 2. Raspberry Pi (Bomb)
 
 ```bash
-cd iot
+cd raspberrypi
 pip install -r requirements.txt
-python main.py --server http://your-server:8080
+python main.py --server ws://your-server:8080/ws
 ```
 
-### 3. Mobile
+### 3. iOS (Expert)
 
 Открыть `mobile/PhotonEntropy.xcodeproj` в Xcode и запустить.
 
 ## Конфигурация
 
-### IoT (config.py)
+### Raspberry Pi
 
 ```python
-SERVER_URL = "http://192.168.1.100:8080"
-DEVICE_ID = "pi-001"
-COLLECT_INTERVAL = 30        # секунд между сборами
-SAMPLES_PER_COMMIT = 500     # сэмплов на коммит
-LIGHT_THRESHOLD = 2000       # порог освещённости
+# config.py
+SERVER_URL = "ws://192.168.1.100:8080/ws"
+DEVICE_ID = "bomb-001"
+
+# GPIO pins
+WIRE_BUTTONS = [19, 26, 21, 20]
+WIRE_LEDS = [25, 8, 7, 1]
+ROTARY_CLK = 5
+ROTARY_DT = 6
+ROTARY_SW = 13
+RGB_PINS = {"r": 17, "g": 27, "b": 22}
+TOUCH_PIN = 12
+HALL_PIN = 16
+TILT_PIN = 24
+BUZZER_PIN = 18
 ```
 
-### Backend (config.yaml)
+### Backend
 
 ```yaml
+# config.yaml
 server:
   port: 8080
-  host: "0.0.0.0"
+
+game:
+  time_limit: 300      # 5 minutes
+  max_strikes: 3
+  modules_count: 5
 
 database:
-  path: "./photon_entropy.db"
-
-entropy:
-  min_samples: 100
-  min_quality: 0.5
-  pool_size: 4096
-
-device:
-  offline_timeout: 120  # секунд
+  path: "./data/bomb.db"
 ```
-
-## Статистические тесты
-
-Каждый коммит энтропии проверяется 4 тестами:
-
-| Тест | Описание | Критерий прохождения |
-|------|----------|---------------------|
-| **Frequency** | Баланс единиц и нулей | 45-55% единиц |
-| **Runs** | Отсутствие длинных серий | Серии < 2×log₂(n) |
-| **Chi-Square** | Равномерность 2-bit комбинаций | χ² < 7.81 |
-| **Variance** | Дисперсия младших битов | 0.5-1.5× от ожидаемой |
-
-Качество = процент пройденных тестов (0%, 25%, 50%, 75%, 100%)
-
-## Скриншоты
-
-*Добавить скриншоты мобильного приложения*
 
 ## Технологии
 
-- **IoT**: Python 3, adafruit-circuitpython-ads1x15
-- **Backend**: Go 1.21+, Gin, SQLite, sqlc, goose, Docker
-- **Mobile**: Swift 5, SwiftUI, iOS 16+
+- **Bomb (Raspberry Pi)**: Python 3, RPi.GPIO, websockets
+- **Backend**: Go, Gin, Gorilla WebSocket, SQLite
+- **Expert (iOS)**: Swift 5, SwiftUI, URLSession WebSocket
 
 ## Лицензия
 
@@ -301,4 +249,3 @@ MIT
 ## Автор
 
 Timur ([P5ina](https://github.com/P5ina)) — Курсовая работа, Mobile & IoT, 2025
-

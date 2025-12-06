@@ -193,7 +193,7 @@ class GameClient(WebSocketClient):
         self.on_game_created: Optional[Callable[[dict], None]] = None
         self.on_game_started: Optional[Callable[[dict], None]] = None
         self.on_timer_tick: Optional[Callable[[int], None]] = None
-        self.on_module_solved: Optional[Callable[[str], None]] = None
+        self.on_module_solved: Optional[Callable[[str, Optional[str]], None]] = None  # (module_id, next_module_id)
         self.on_strike: Optional[Callable[[int], None]] = None
         self.on_game_won: Optional[Callable[[], None]] = None
         self.on_game_lost: Optional[Callable[[str], None]] = None
@@ -245,10 +245,11 @@ class GameClient(WebSocketClient):
 
     def _on_module_solved(self, data: dict):
         """Handle module solved."""
-        module = data.get("module", "unknown")
-        print(f"[Game] Module solved: {module}")
+        module_id = data.get("module_id", "unknown")
+        next_module_id = data.get("next_module_id")
+        print(f"[Game] Module solved: {module_id}, next: {next_module_id}")
         if self.on_module_solved:
-            self.on_module_solved(module)
+            self.on_module_solved(module_id, next_module_id)
 
     def _on_strike(self, data: dict):
         """Handle strike."""

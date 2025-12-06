@@ -29,9 +29,10 @@ const (
 type ModuleState string
 
 const (
-	ModuleStateActive ModuleState = "active"
-	ModuleStateSolved ModuleState = "solved"
-	ModuleStateFailed ModuleState = "failed"
+	ModuleStateInactive ModuleState = "inactive" // Not yet activated (sequential play)
+	ModuleStateActive   ModuleState = "active"
+	ModuleStateSolved   ModuleState = "solved"
+	ModuleStateFailed   ModuleState = "failed"
 )
 
 // WireColor represents wire colors for the Wires module
@@ -58,19 +59,20 @@ type Module struct {
 
 // Game represents a single game session
 type Game struct {
-	ID           string      `json:"id"`
-	Code         string      `json:"code"` // 6-character join code
-	State        GameState   `json:"state"`
-	Seed         int64       `json:"seed"`
-	TimeLimit    int         `json:"time_limit"`    // Total time in seconds
-	TimeLeft     int         `json:"time_left"`     // Remaining time
-	Strikes      int         `json:"strikes"`       // Current strikes
-	MaxStrikes   int         `json:"max_strikes"`   // Max strikes before explosion
-	Modules      []Module    `json:"modules"`
-	ModulesCount int         `json:"modules_count"`
-	CreatedAt    time.Time   `json:"created_at"`
-	StartedAt    *time.Time  `json:"started_at,omitempty"`
-	EndedAt      *time.Time  `json:"ended_at,omitempty"`
+	ID                string      `json:"id"`
+	Code              string      `json:"code"` // 6-character join code
+	State             GameState   `json:"state"`
+	Seed              int64       `json:"seed"`
+	TimeLimit         int         `json:"time_limit"`          // Total time in seconds
+	TimeLeft          int         `json:"time_left"`           // Remaining time
+	Strikes           int         `json:"strikes"`             // Current strikes
+	MaxStrikes        int         `json:"max_strikes"`         // Max strikes before explosion
+	Modules           []Module    `json:"modules"`
+	ModulesCount      int         `json:"modules_count"`
+	ActiveModuleIndex int         `json:"active_module_index"` // Current active module (sequential play)
+	CreatedAt         time.Time   `json:"created_at"`
+	StartedAt         *time.Time  `json:"started_at,omitempty"`
+	EndedAt           *time.Time  `json:"ended_at,omitempty"`
 
 	// Client tracking (not serialized to JSON)
 	BombConnected   bool `json:"bomb_connected"`
@@ -104,15 +106,13 @@ type KeypadSolution struct {
 
 // SimonConfig holds configuration for the Simon module
 type SimonConfig struct {
-	Sequence      []string `json:"sequence"`       // Color sequence to remember
-	CurrentIndex  int      `json:"current_index"`  // Current position in sequence
-	ShowingColor  string   `json:"showing_color"`  // Currently displayed color (or empty)
-	AwaitingInput bool     `json:"awaiting_input"` // Whether waiting for user input
+	Sequence     []string `json:"sequence"`      // Color sequence to display on RGB LED
+	CurrentIndex int      `json:"current_index"` // Current position in sequence (expert's progress)
 }
 
 // SimonSolution holds the solution for the Simon module
 type SimonSolution struct {
-	ExpectedTaps []int `json:"expected_taps"` // Number of taps for each color in sequence
+	ExpectedColors []string `json:"expected_colors"` // Colors expert must tap in order
 }
 
 // MagnetConfig holds configuration for the Magnet module

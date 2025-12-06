@@ -175,14 +175,25 @@ func (e *Engine) StartGame(gameID string) error {
 	now := time.Now()
 	game.State = StatePlaying
 	game.StartedAt = &now
+	game.ActiveModuleIndex = 0
+
+	// Set first module as active, rest as inactive
+	for i := range game.Modules {
+		if i == 0 {
+			game.Modules[i].State = ModuleStateActive
+		} else {
+			game.Modules[i].State = ModuleStateInactive
+		}
+	}
 
 	e.emitEvent(GameEvent{
 		Type:      EventGameStarted,
 		GameID:    gameID,
 		Timestamp: now,
 		Data: map[string]interface{}{
-			"time_limit": game.TimeLimit,
-			"modules":    game.Modules,
+			"time_limit":          game.TimeLimit,
+			"modules":             game.Modules,
+			"active_module_index": game.ActiveModuleIndex,
 		},
 	})
 
@@ -331,11 +342,24 @@ func (e *Engine) ProcessAction(gameID, moduleID, action string, value interface{
 	// Check if module was solved
 	if result.Solved {
 		module.State = ModuleStateSolved
+
+		// Activate next module (sequential play)
+		nextModuleID := ""
+		if game.ActiveModuleIndex+1 < len(game.Modules) {
+			game.ActiveModuleIndex++
+			game.Modules[game.ActiveModuleIndex].State = ModuleStateActive
+			nextModuleID = game.Modules[game.ActiveModuleIndex].ID
+		}
+
 		e.emitEvent(GameEvent{
 			Type:      EventModuleSolved,
 			GameID:    gameID,
 			ModuleID:  moduleID,
 			Timestamp: time.Now(),
+			Data: map[string]interface{}{
+				"next_module_id":      nextModuleID,
+				"active_module_index": game.ActiveModuleIndex,
+			},
 		})
 
 		// Check if all modules are solved
@@ -540,26 +564,26 @@ func formatCodeDisplay(code string, length int) string {
 	return display
 }
 
-// processSimonAction handles Simon Says input
+// processSimonAction handles Simon Says input (expert taps colors on mobile)
 func (e *Engine) processSimonAction(module *Module, action string, value interface{}) *ActionResult {
-	if action != "tap" {
+	if action != "color_tap" {
 		return &ActionResult{Success: false, Message: "invalid action"}
 	}
 
-	tapCount, ok := value.(float64)
+	tappedColor, ok := value.(string)
 	if !ok {
-		return &ActionResult{Success: false, Message: "invalid tap count"}
+		return &ActionResult{Success: false, Message: "invalid color"}
 	}
-	taps := int(tapCount)
 
-	expectedTaps, ok := module.Solution["expected_taps"].([]int)
+	// Get expected colors from solution
+	expectedColors, ok := module.Solution["expected_colors"].([]string)
 	if !ok {
 		// Try to convert from interface slice
-		if tapsInterface, ok := module.Solution["expected_taps"].([]interface{}); ok {
-			expectedTaps = make([]int, len(tapsInterface))
-			for i, v := range tapsInterface {
-				if f, ok := v.(float64); ok {
-					expectedTaps[i] = int(f)
+		if colorsInterface, ok := module.Solution["expected_colors"].([]interface{}); ok {
+			expectedColors = make([]string, len(colorsInterface))
+			for i, v := range colorsInterface {
+				if s, ok := v.(string); ok {
+					expectedColors[i] = s
 				}
 			}
 		} else {
@@ -572,24 +596,24 @@ func (e *Engine) processSimonAction(module *Module, action string, value interfa
 		currentIndex = int(currentIndexF)
 	}
 
-	if currentIndex >= len(expectedTaps) {
+	if currentIndex >= len(expectedColors) {
 		return &ActionResult{Success: false, Message: "sequence complete"}
 	}
 
-	if taps != expectedTaps[currentIndex] {
-		// Wrong input - reset
+	if tappedColor != expectedColors[currentIndex] {
+		// Wrong color - reset to beginning
 		module.Config["current_index"] = 0
 		return &ActionResult{
 			Success: true,
 			Strike:  true,
-			Message: "wrong input",
+			Message: fmt.Sprintf("wrong color: expected %s", expectedColors[0]),
 		}
 	}
 
 	currentIndex++
 	module.Config["current_index"] = currentIndex
 
-	if currentIndex >= len(expectedTaps) {
+	if currentIndex >= len(expectedColors) {
 		return &ActionResult{
 			Success: true,
 			Solved:  true,
@@ -599,7 +623,7 @@ func (e *Engine) processSimonAction(module *Module, action string, value interfa
 
 	return &ActionResult{
 		Success: true,
-		Message: fmt.Sprintf("correct, %d remaining", len(expectedTaps)-currentIndex),
+		Message: fmt.Sprintf("correct, %d remaining", len(expectedColors)-currentIndex),
 	}
 }
 

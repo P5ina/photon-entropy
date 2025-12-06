@@ -37,9 +37,12 @@ class GameController:
         self.time_remaining = 0
         self.strikes = 0
         self.max_strikes = 3
+        self.active_module_index = 0
 
         # Module ID mapping: type -> server module ID
         self.module_ids: dict[str, str] = {}
+        # Module order list (matches server order)
+        self.module_order: list[str] = []
 
         # Event loop reference for thread-safe async calls
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -56,7 +59,6 @@ class GameController:
         )
         self.simon = SimonModule(
             (config.rgb_red, config.rgb_green, config.rgb_blue),
-            config.touch_pin,
             mock=self.mock
         )
         self.magnet = MagnetModule(config.hall_pin, mock=self.mock)
@@ -104,6 +106,7 @@ class GameController:
         self.client.on_game_created = self._on_game_created
         self.client.on_game_started = self._on_game_started
         self.client.on_timer_tick = self._on_timer_tick
+        self.client.on_module_solved = self._on_server_module_solved
         self.client.on_strike = self._on_server_strike
         self.client.on_game_won = self._on_server_game_won
         self.client.on_game_lost = self._on_server_game_lost
@@ -139,29 +142,40 @@ class GameController:
         self.time_remaining = game_data.get("time_limit", 300)
         self.strikes = 0
         self.max_strikes = game_data.get("max_strikes", 3)
+        self.active_module_index = game_data.get("active_module_index", 0)
 
         # Configure modules from server data
-        # Server sends modules as array: [{"id": "...", "type": "wires", "config": {...}}, ...]
+        # Server sends modules as array: [{"id": "...", "type": "wires", "config": {...}, "state": "active/inactive"}, ...]
         modules_list = game_data.get("modules", [])
         print(f"[Controller] Received {len(modules_list)} modules")
         self.module_ids = {}  # Reset module ID mapping
+        self.module_order = []  # Track order for sequential activation
+
         for module_data in modules_list:
             module_id = module_data.get("id")
             module_type = module_data.get("type")
             module_config = module_data.get("config", {})
+            module_state = module_data.get("state", "inactive")
+
             if module_type in self.modules:
-                # Store module ID mapping
+                # Store module ID mapping and order
                 self.module_ids[module_type] = module_id
-                print(f"[Controller] Configuring {module_type} (id={module_id}): {module_config}")
+                self.module_order.append(module_type)
+                print(f"[Controller] Configuring {module_type} (id={module_id}, state={module_state})")
                 self.modules[module_type].configure(module_config)
 
-        # Activate all modules
-        for module in self.modules.values():
-            module.activate()
+                # Only activate the first active module (sequential play)
+                if module_state == "active":
+                    print(f"[Controller] Activating {module_type}")
+                    self.modules[module_type].activate()
 
         self.lcd.show_timer(self.time_remaining)
         self.buzzer.tick()
-        print(f"[Controller] Game started! Time: {self.time_remaining}s")
+
+        # Show which module is active
+        if self.module_order:
+            active_type = self.module_order[self.active_module_index] if self.active_module_index < len(self.module_order) else "?"
+            print(f"[Controller] Game started! Time: {self.time_remaining}s, Active module: {active_type}")
 
     def _on_timer_tick(self, remaining: int):
         """Handle timer tick from server."""
@@ -175,19 +189,38 @@ class GameController:
             self.buzzer.tick()
 
     def _on_module_solved(self, module_name: str):
-        """Handle module solved."""
+        """Handle module solved (from local module)."""
         print(f"[Controller] Module solved: {module_name}")
         self.buzzer.play_pattern("success")
+
+        # Deactivate the solved module
+        if module_name in self.modules:
+            self.modules[module_name].deactivate()
 
         if self.client and self.game_id:
             asyncio.create_task(
                 self.client.report_module_solved(module_name)
             )
 
-        # Check if all modules solved
+        # Server will tell us which module to activate next via module_solved event
+        # Check if all modules solved (fallback)
         all_solved = all(m.is_solved for m in self.modules.values())
         if all_solved:
             self._game_won()
+
+    def _activate_next_module(self, next_module_id: str):
+        """Activate the next module after current one is solved."""
+        # Find module type by ID
+        next_module_type = None
+        for mod_type, mod_id in self.module_ids.items():
+            if mod_id == next_module_id:
+                next_module_type = mod_type
+                break
+
+        if next_module_type and next_module_type in self.modules:
+            print(f"[Controller] Activating next module: {next_module_type}")
+            self.modules[next_module_type].activate()
+            self.active_module_index += 1
 
     def _on_module_strike(self, module_name: str, reason: str):
         """Handle strike from module."""
@@ -216,9 +249,27 @@ class GameController:
                 self._loop
             )
 
+    def _on_server_module_solved(self, module_id: str, next_module_id: str):
+        """Handle module solved from server (triggered by expert's actions on mobile)."""
+        print(f"[Controller] Server: module {module_id} solved, next: {next_module_id}")
+        self.buzzer.play_pattern("success")
+
+        # Find and deactivate the solved module
+        for mod_type, mod_id in self.module_ids.items():
+            if mod_id == module_id:
+                if mod_type in self.modules:
+                    self.modules[mod_type].deactivate()
+                    self.modules[mod_type]._state = ModuleState.SOLVED
+                break
+
+        # Activate next module if provided
+        if next_module_id:
+            self._activate_next_module(next_module_id)
+
     def _on_server_strike(self, count: int):
         """Handle strike count from server."""
         self.strikes = count
+        self.buzzer.play_pattern("error")
 
     def _on_server_game_won(self):
         """Handle game won from server."""

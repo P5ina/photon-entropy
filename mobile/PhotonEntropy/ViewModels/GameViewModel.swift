@@ -138,4 +138,33 @@ class GameViewModel: ObservableObject {
     func isModuleSolved(_ type: String) -> Bool {
         game?.modules.first { $0.type == type }?.state == "solved"
     }
+
+    func isModuleActive(_ type: String) -> Bool {
+        game?.modules.first { $0.type == type }?.state == "active"
+    }
+
+    func getModuleId(_ type: String) -> String? {
+        game?.modules.first { $0.type == type }?.id
+    }
+
+    // MARK: - Module Actions
+
+    func sendSimonColor(_ color: String) async throws -> ActionResponse {
+        guard let gameId = game?.id,
+              let moduleId = getModuleId("simon") else {
+            throw APIError.message("Game or module not found")
+        }
+
+        let response = try await gameService.sendModuleAction(
+            gameId: gameId,
+            moduleId: moduleId,
+            action: "color_tap",
+            value: color
+        )
+
+        // Refresh game state after action
+        _ = try? await gameService.getGameState(gameId: gameId)
+
+        return response
+    }
 }

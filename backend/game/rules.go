@@ -199,37 +199,25 @@ func (r *RuleGenerator) generateKeypadModule(id string) Module {
 }
 
 // generateSimonModule creates a Simon Says module with a color sequence
+// Pi shows colors on RGB LED, Expert taps matching colors on mobile app
 func (r *RuleGenerator) generateSimonModule(id string) Module {
 	colors := []string{"red", "green", "blue"}
 	sequenceLength := 3 + r.rng.Intn(2) // 3-4 colors
 
 	sequence := make([]string, sequenceLength)
-	expectedTaps := make([]int, sequenceLength)
 
 	for i := 0; i < sequenceLength; i++ {
 		colorIdx := r.rng.Intn(len(colors))
 		sequence[i] = colors[colorIdx]
-
-		// Taps based on color (rule varies by seed)
-		switch sequence[i] {
-		case "red":
-			expectedTaps[i] = 1
-		case "green":
-			expectedTaps[i] = 2
-		case "blue":
-			expectedTaps[i] = 0 // Wait, don't tap
-		}
 	}
 
 	config := map[string]interface{}{
-		"sequence":       sequence,
-		"current_index":  0,
-		"showing_color":  "",
-		"awaiting_input": false,
+		"sequence":      sequence, // Colors shown on Pi's RGB LED
+		"current_index": 0,        // Expert's progress
 	}
 
 	solution := map[string]interface{}{
-		"expected_taps": expectedTaps,
+		"expected_colors": sequence, // Expert must tap same colors in order
 	}
 
 	return Module{
@@ -315,12 +303,10 @@ func (r *RuleGenerator) GetKeypadManual() []string {
 // GetSimonManual returns the manual/instructions for the Simon module
 func (r *RuleGenerator) GetSimonManual() []string {
 	return []string{
-		"The RGB LED will flash a sequence of colors.",
-		"For each color in the sequence:",
-		"  RED: Tap the touch sensor ONCE",
-		"  GREEN: Tap the touch sensor TWICE",
-		"  BLUE: Do NOT tap - wait for the next color",
-		"Complete the entire sequence correctly to solve the module.",
+		"The defuser will see colors flashing on the RGB LED.",
+		"They must tell you the sequence of colors.",
+		"Tap the matching color buttons below in the same order.",
+		"Get the entire sequence correct to solve the module.",
 	}
 }
 

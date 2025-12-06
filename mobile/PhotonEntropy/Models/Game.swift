@@ -30,6 +30,7 @@ struct Game: Codable, Identifiable {
     let maxStrikes: Int
     let strikes: Int
     let modules: [Module]
+    let activeModuleIndex: Int
     let bombConnected: Bool
     let expertConnected: Bool
 
@@ -40,6 +41,7 @@ struct Game: Codable, Identifiable {
         case timeRemaining = "time_left"
         case maxStrikes = "max_strikes"
         case strikes, modules
+        case activeModuleIndex = "active_module_index"
         case bombConnected = "bomb_connected"
         case expertConnected = "expert_connected"
     }
@@ -134,6 +136,26 @@ struct JoinGameResponse: Codable {
         case bombConnected = "bomb_connected"
         case expertConnected = "expert_connected"
     }
+}
+
+struct ActionResponse: Codable {
+    let result: ActionResult
+    let gameState: String
+    let strikes: Int
+    let modules: [Module]
+
+    enum CodingKeys: String, CodingKey {
+        case result
+        case gameState = "game_state"
+        case strikes, modules
+    }
+}
+
+struct ActionResult: Codable {
+    let success: Bool
+    let strike: Bool
+    let solved: Bool
+    let message: String
 }
 
 // MARK: - Helper for dynamic JSON

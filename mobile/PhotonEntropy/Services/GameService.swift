@@ -148,6 +148,37 @@ class GameService: ObservableObject {
         }
     }
 
+    func sendModuleAction(gameId: String, moduleId: String, action: String, value: Any) async throws -> ActionResponse {
+        guard let url = URL(string: "\(baseURL)/api/v1/game/action") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "game_id": gameId,
+            "module_id": moduleId,
+            "action": action,
+            "value": value
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errorMessage = errorJson["error"] as? String {
+                throw APIError.message(errorMessage)
+            }
+            throw APIError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
+        }
+
+        return try decoder.decode(ActionResponse.self, from: data)
+    }
+
     // MARK: - WebSocket
 
     func connectWebSocket(gameId: String) {
@@ -236,6 +267,7 @@ class GameService: ObservableObject {
                         maxStrikes: game.maxStrikes,
                         strikes: game.strikes,
                         modules: game.modules,
+                        activeModuleIndex: game.activeModuleIndex,
                         bombConnected: game.bombConnected,
                         expertConnected: game.expertConnected
                     )
@@ -254,6 +286,7 @@ class GameService: ObservableObject {
                         maxStrikes: game.maxStrikes,
                         strikes: strikes,
                         modules: game.modules,
+                        activeModuleIndex: game.activeModuleIndex,
                         bombConnected: game.bombConnected,
                         expertConnected: game.expertConnected
                     )
@@ -261,7 +294,7 @@ class GameService: ObservableObject {
             }
 
         case "module_solved":
-            // Refresh game state
+            // Refresh game state to get updated activeModuleIndex
             if let gameId = currentGame?.id {
                 Task {
                     _ = try? await getGameState(gameId: gameId)
@@ -279,6 +312,7 @@ class GameService: ObservableObject {
                     maxStrikes: game.maxStrikes,
                     strikes: game.strikes,
                     modules: game.modules,
+                    activeModuleIndex: game.activeModuleIndex,
                     bombConnected: game.bombConnected,
                     expertConnected: game.expertConnected
                 )
@@ -295,6 +329,7 @@ class GameService: ObservableObject {
                     maxStrikes: game.maxStrikes,
                     strikes: game.strikes,
                     modules: game.modules,
+                    activeModuleIndex: game.activeModuleIndex,
                     bombConnected: game.bombConnected,
                     expertConnected: game.expertConnected
                 )

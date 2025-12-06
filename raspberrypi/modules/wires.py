@@ -1,4 +1,4 @@
-"""Wires module - press the correct button."""
+"""Wires module - cut the correct wire."""
 from .base import BaseModule, ModuleState
 from hardware.button import ButtonGroup
 from hardware.sensors import LEDGroup
@@ -7,8 +7,9 @@ from hardware.sensors import LEDGroup
 class WiresModule(BaseModule):
     """
     Wires module: 4 colored LEDs (Red, Blue, Green, Yellow) with buttons.
-    LEDs are static indicators. Player must press the correct button.
-    Server validates which button is correct.
+    Each game enables/disables some wires (LEDs on/off).
+    Player must cut the correct wire based on rules.
+    Server validates which wire is correct.
     """
 
     def __init__(self, button_pins: tuple, led_pins: tuple, mock: bool = False):
@@ -16,9 +17,10 @@ class WiresModule(BaseModule):
         self.buttons = ButtonGroup(button_pins, mock=mock)
         self.leds = LEDGroup(led_pins, mock=mock)
 
-        # Fixed wire colors: Red(0), Blue(1), Green(2), Yellow(3)
+        # Wire colors: Red(0), Blue(1), Green(2), Yellow(3)
         self.wire_colors = ["red", "blue", "green", "yellow"]
-        self._button_states = [False, False, False, False]  # Track pressed buttons
+        self._wire_enabled = [True, True, True, True]  # Which wires exist
+        self._wire_cut = [False, False, False, False]  # Which wires are cut
 
     def setup(self):
         """Initialize hardware."""
@@ -29,21 +31,24 @@ class WiresModule(BaseModule):
     def configure(self, config: dict):
         """Configure with game rules."""
         super().configure(config)
-        # Config only contains display info (wires, cut_wires)
-        # Solution (correct button) is hidden - server validates
+        # Config contains: wire_enabled (which wires exist)
+        self._wire_enabled = config.get("wire_enabled", [True, True, True, True])
         if self.mock:
-            print(f"[Wires] Configured with: {config}")
+            enabled_colors = [self.wire_colors[i] for i, e in enumerate(self._wire_enabled) if e]
+            print(f"[Wires] Enabled wires: {enabled_colors}")
 
     def activate(self):
-        """Activate module - turn on all LEDs."""
+        """Activate module - turn on enabled wire LEDs."""
         self._state = ModuleState.ACTIVE
-        self._button_states = [False, False, False, False]
+        self._wire_cut = [False, False, False, False]
 
-        # Turn on all LEDs (static color indicators)
-        self.leds.all_on()
+        # Turn on only enabled wires
+        for i, enabled in enumerate(self._wire_enabled):
+            self.leds.set(i, enabled)
 
         if self.mock:
-            print("[Wires] Activated - waiting for button press")
+            enabled_colors = [self.wire_colors[i] for i, e in enumerate(self._wire_enabled) if e]
+            print(f"[Wires] Activated - wires present: {enabled_colors}")
 
     def deactivate(self):
         """Deactivate module."""
@@ -52,26 +57,33 @@ class WiresModule(BaseModule):
 
     def reset(self):
         """Reset module state."""
-        self._button_states = [False, False, False, False]
+        self._wire_cut = [False, False, False, False]
         if self._state == ModuleState.ACTIVE:
-            self.leds.all_on()
+            for i, enabled in enumerate(self._wire_enabled):
+                self.leds.set(i, enabled)
 
     def _on_button_press(self, index: int):
-        """Handle button press - send to server for validation."""
+        """Handle button press (wire cut) - send to server for validation."""
         if self._state != ModuleState.ACTIVE:
             return
 
-        if self._button_states[index]:
-            return  # Already pressed this button
+        # Can't cut a wire that doesn't exist
+        if not self._wire_enabled[index]:
+            if self.mock:
+                print(f"[Wires] Button {index} pressed but wire not present")
+            return
 
-        self._button_states[index] = True
-        color = self.wire_colors[index]
+        # Can't cut a wire that's already cut
+        if self._wire_cut[index]:
+            return
 
-        # Turn off the LED for this button
+        # Cut the wire - turn off LED
+        self._wire_cut[index] = True
         self.leds.set(index, False)
 
+        color = self.wire_colors[index]
         if self.mock:
-            print(f"[Wires] Pressed button {index} ({color})")
+            print(f"[Wires] Cut wire {index} ({color})")
 
         # Report action to server - server will validate and respond
         self._report_action("cut_wire", {"wire": index, "color": color})
@@ -86,15 +98,16 @@ class WiresModule(BaseModule):
             if self.mock:
                 print("[Wires] STRIKE from server!")
 
-    def simulate_press(self, button_index: int):
-        """Simulate pressing a button (for testing)."""
+    def simulate_cut(self, wire_index: int):
+        """Simulate cutting a wire (for testing)."""
         if self.mock:
-            self._on_button_press(button_index)
+            self._on_button_press(wire_index)
 
     def get_state(self) -> dict:
         """Get current module state for sync."""
         return {
-            "button_states": self._button_states,
+            "wire_enabled": self._wire_enabled,
+            "wire_cut": self._wire_cut,
             "solved": self.is_solved,
         }
 

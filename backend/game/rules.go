@@ -65,22 +65,22 @@ func (r *RuleGenerator) generateModule(id string, modType ModuleType) Module {
 }
 
 // generateWiresModule creates a Wires module
-// Hardware has fixed LEDs: Red(1), Blue(2), Green(3), Yellow(4)
-// Rule determines which button(s) to press based on game seed
+// Hardware has 4 LEDs: Red(0), Blue(1), Green(2), Yellow(3)
+// Each game randomly enables/disables wires, rules based on which exist
 func (r *RuleGenerator) generateWiresModule(id string) Module {
-	// Fixed wire colors at positions 0-3: Red, Blue, Green, Yellow
-	wires := []WireColor{WireRed, WireBlue, WireGreen, WireYellow}
+	// Randomly enable 2-4 wires
+	wireEnabled := r.generateEnabledWires()
 
-	// Determine which button to press based on rule set
-	correctButton := r.determineCorrectButton()
+	// Determine which wire to cut based on rules
+	correctWire := r.determineCorrectWire(wireEnabled)
 
 	config := map[string]interface{}{
-		"wires":     wires,
-		"cut_wires": []bool{false, false, false, false},
+		"wire_enabled": wireEnabled, // Which wires exist in this game
+		"cut_wires":    []bool{false, false, false, false},
 	}
 
 	solution := map[string]interface{}{
-		"correct_cuts": []int{correctButton},
+		"correct_cuts": []int{correctWire},
 	}
 
 	return Module{
@@ -92,11 +92,86 @@ func (r *RuleGenerator) generateWiresModule(id string) Module {
 	}
 }
 
-// determineCorrectButton picks which button to press based on rule set
+// generateEnabledWires randomly decides which wires are present (2-4 wires)
+func (r *RuleGenerator) generateEnabledWires() []bool {
+	// Always have at least 2 wires, up to 4
+	numWires := 2 + r.rng.Intn(3) // 2, 3, or 4 wires
+
+	enabled := []bool{false, false, false, false}
+	indices := []int{0, 1, 2, 3}
+
+	// Shuffle indices
+	for i := len(indices) - 1; i > 0; i-- {
+		j := r.rng.Intn(i + 1)
+		indices[i], indices[j] = indices[j], indices[i]
+	}
+
+	// Enable first numWires
+	for i := 0; i < numWires; i++ {
+		enabled[indices[i]] = true
+	}
+
+	return enabled
+}
+
+// determineCorrectWire applies rules based on which wires are enabled
 // Positions: 0=Red, 1=Blue, 2=Green, 3=Yellow
-func (r *RuleGenerator) determineCorrectButton() int {
-	// Randomly select which button is correct (0-3)
-	return r.rng.Intn(4)
+func (r *RuleGenerator) determineCorrectWire(wireEnabled []bool) int {
+	hasRed := wireEnabled[0]
+	hasBlue := wireEnabled[1]
+	hasGreen := wireEnabled[2]
+	hasYellow := wireEnabled[3]
+
+	// Count enabled wires
+	count := 0
+	for _, e := range wireEnabled {
+		if e {
+			count++
+		}
+	}
+
+	// Rule set based on seed
+	ruleSet := r.rng.Intn(4)
+
+	switch ruleSet {
+	case 0:
+		// If no green wire, cut red. Otherwise cut green.
+		if !hasGreen && hasRed {
+			return 0 // Red
+		}
+		if hasGreen {
+			return 2 // Green
+		}
+	case 1:
+		// If there are exactly 2 wires, cut yellow. Otherwise cut blue.
+		if count == 2 && hasYellow {
+			return 3 // Yellow
+		}
+		if hasBlue {
+			return 1 // Blue
+		}
+	case 2:
+		// If no blue wire, cut yellow. Otherwise cut red.
+		if !hasBlue && hasYellow {
+			return 3 // Yellow
+		}
+		if hasRed {
+			return 0 // Red
+		}
+	case 3:
+		// If both red and blue exist, cut blue. Otherwise cut the last enabled wire.
+		if hasRed && hasBlue {
+			return 1 // Blue
+		}
+	}
+
+	// Fallback: cut the first enabled wire
+	for i, e := range wireEnabled {
+		if e {
+			return i
+		}
+	}
+	return 0
 }
 
 // generateKeypadModule creates a Keypad module with a random code
@@ -192,15 +267,37 @@ func (r *RuleGenerator) generateMagnetModule(id string) Module {
 }
 
 // GetWiresManual returns the manual/instructions for the Wires module
-// Fixed layout: Button 1=Red, 2=Blue, 3=Green, 4=Yellow
-// The correct button is determined by game seed
+// Rules are based on which wires are present (LEDs on)
 func (r *RuleGenerator) GetWiresManual() []string {
-	correctButton := r.rng.Intn(4)
-	colors := []string{"RED", "BLUE", "GREEN", "YELLOW"}
+	// Generate same enabled wires as generateWiresModule would
+	_ = r.generateEnabledWires() // Consume RNG to stay in sync
 
-	return []string{
-		fmt.Sprintf("Press the %s button.", colors[correctButton]),
+	ruleSet := r.rng.Intn(4)
+
+	switch ruleSet {
+	case 0:
+		return []string{
+			"If there is NO green wire, cut RED.",
+			"Otherwise, cut GREEN.",
+		}
+	case 1:
+		return []string{
+			"If there are exactly 2 wires, cut YELLOW.",
+			"Otherwise, cut BLUE.",
+		}
+	case 2:
+		return []string{
+			"If there is NO blue wire, cut YELLOW.",
+			"Otherwise, cut RED.",
+		}
+	case 3:
+		return []string{
+			"If both RED and BLUE wires exist, cut BLUE.",
+			"Otherwise, cut the first available wire.",
+		}
 	}
+
+	return []string{"Cut the first wire."}
 }
 
 // GetKeypadManual returns the manual/instructions for the Keypad module

@@ -148,6 +148,9 @@ class GameController:
         self.phase = GamePhase.PLAYING
         self.game_id = data.get("game_id")
 
+        # Restore button callbacks that may have been replaced by restart listeners
+        self.wires.buttons.set_all_callbacks(self.wires._on_button_press)
+
         # Server wraps game data inside "data" field
         game_data = data.get("data", data)
         self.time_remaining = game_data.get("time_limit", 300)

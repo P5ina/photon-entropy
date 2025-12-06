@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 )
 
 // RuleGenerator generates deterministic rules based on a seed
@@ -254,37 +255,101 @@ func (r *RuleGenerator) generateMagnetModule(id string) Module {
 }
 
 // GetWiresManual returns the manual/instructions for the Wires module
-// Rules are based on which wires are present (LEDs on)
+// Shows which wires are present and which one to cut
 func (r *RuleGenerator) GetWiresManual() []string {
 	// Generate same enabled wires as generateWiresModule would
-	_ = r.generateEnabledWires() // Consume RNG to stay in sync
+	wireEnabled := r.generateEnabledWires()
 
+	// Determine correct wire using same logic as module generation
+	correctWire := r.determineCorrectWireForManual(wireEnabled)
+
+	// Wire color names
+	colorNames := []string{"RED", "BLUE", "GREEN", "YELLOW"}
+
+	// Build list of present wires
+	var presentWires []string
+	for i, enabled := range wireEnabled {
+		if enabled {
+			presentWires = append(presentWires, colorNames[i])
+		}
+	}
+
+	return []string{
+		fmt.Sprintf("Wires present: %s", joinWires(presentWires)),
+		fmt.Sprintf("Cut the %s wire.", colorNames[correctWire]),
+	}
+}
+
+// determineCorrectWireForManual applies the same rules as determineCorrectWire
+// but doesn't consume RNG (for manual generation after module generation)
+func (r *RuleGenerator) determineCorrectWireForManual(wireEnabled []bool) int {
+	hasRed := wireEnabled[0]
+	hasBlue := wireEnabled[1]
+	hasGreen := wireEnabled[2]
+	hasYellow := wireEnabled[3]
+
+	// Count enabled wires
+	count := 0
+	for _, e := range wireEnabled {
+		if e {
+			count++
+		}
+	}
+
+	// Rule set based on seed - must match determineCorrectWire
 	ruleSet := r.rng.Intn(4)
 
 	switch ruleSet {
 	case 0:
-		return []string{
-			"If there is NO green wire, cut RED.",
-			"Otherwise, cut GREEN.",
+		if !hasGreen && hasRed {
+			return 0 // Red
+		}
+		if hasGreen {
+			return 2 // Green
 		}
 	case 1:
-		return []string{
-			"If there are exactly 2 wires, cut YELLOW.",
-			"Otherwise, cut BLUE.",
+		if count == 2 && hasYellow {
+			return 3 // Yellow
+		}
+		if hasBlue {
+			return 1 // Blue
 		}
 	case 2:
-		return []string{
-			"If there is NO blue wire, cut YELLOW.",
-			"Otherwise, cut RED.",
+		if !hasBlue && hasYellow {
+			return 3 // Yellow
+		}
+		if hasRed {
+			return 0 // Red
 		}
 	case 3:
-		return []string{
-			"If both RED and BLUE wires exist, cut BLUE.",
-			"Otherwise, cut the first available wire.",
+		if hasRed && hasBlue {
+			return 1 // Blue
 		}
 	}
 
-	return []string{"Cut the first wire."}
+	// Fallback: cut the first enabled wire
+	for i, e := range wireEnabled {
+		if e {
+			return i
+		}
+	}
+	return 0
+}
+
+// joinWires joins wire names with commas and "and"
+func joinWires(wires []string) string {
+	switch len(wires) {
+	case 0:
+		return "none"
+	case 1:
+		return wires[0]
+	case 2:
+		return wires[0] + " and " + wires[1]
+	default:
+		return fmt.Sprintf("%s, and %s",
+			strings.Join(wires[:len(wires)-1], ", "),
+			wires[len(wires)-1])
+	}
 }
 
 // GetKeypadManual returns the manual/instructions for the Keypad module

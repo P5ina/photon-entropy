@@ -195,6 +195,10 @@ class GameController:
 
     def _on_timer_tick(self, remaining: int):
         """Handle timer tick from server."""
+        # Ignore timer ticks if game is not playing
+        if self.phase != GamePhase.PLAYING:
+            return
+
         self.time_remaining = remaining
         self.lcd.show_timer(remaining, self.strikes)
 

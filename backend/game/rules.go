@@ -122,9 +122,9 @@ func (r *RuleGenerator) determineWireCuts(wires []WireColor) []int {
 		return []int{1} // Second wire (0-indexed)
 
 	case 1:
-		// If last wire is white, cut first wire
+		// If last wire is yellow, cut first wire
 		// Otherwise cut the wire after the first blue
-		if wires[3] == WireWhite {
+		if wires[3] == WireYellow {
 			return []int{0}
 		}
 		for i, w := range wires {
@@ -150,24 +150,24 @@ func (r *RuleGenerator) determineWireCuts(wires []WireColor) []int {
 		return []int{3}
 
 	case 3:
-		// If orange is first, cut the last wire
-		// If there are exactly two white wires, cut the first white
+		// If green is first, cut the last wire
+		// If there are exactly two yellow wires, cut the first yellow
 		// Otherwise cut the third wire
-		if wires[0] == WireOrange {
+		if wires[0] == WireGreen {
 			return []int{3}
 		}
-		whiteCount := 0
-		firstWhiteIdx := -1
+		yellowCount := 0
+		firstYellowIdx := -1
 		for i, w := range wires {
-			if w == WireWhite {
-				whiteCount++
-				if firstWhiteIdx < 0 {
-					firstWhiteIdx = i
+			if w == WireYellow {
+				yellowCount++
+				if firstYellowIdx < 0 {
+					firstYellowIdx = i
 				}
 			}
 		}
-		if whiteCount == 2 && firstWhiteIdx >= 0 {
-			return []int{firstWhiteIdx}
+		if yellowCount == 2 && firstYellowIdx >= 0 {
+			return []int{firstYellowIdx}
 		}
 		return []int{2}
 	}
@@ -279,7 +279,7 @@ func (r *RuleGenerator) GetWiresManual() []string {
 		}
 	case 1:
 		return []string{
-			"If the last wire is white, cut the first wire.",
+			"If the last wire is yellow, cut the first wire.",
 			"Otherwise, cut the wire immediately after the first blue wire.",
 			"If there is no blue wire, cut the first wire.",
 		}
@@ -290,8 +290,8 @@ func (r *RuleGenerator) GetWiresManual() []string {
 		}
 	case 3:
 		return []string{
-			"If the first wire is orange, cut the last wire.",
-			"If there are exactly two white wires, cut the first white wire.",
+			"If the first wire is green, cut the last wire.",
+			"If there are exactly two yellow wires, cut the first yellow wire.",
 			"Otherwise, cut the third wire.",
 		}
 	}

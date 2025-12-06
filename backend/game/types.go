@@ -40,12 +40,12 @@ type WireColor string
 const (
 	WireRed    WireColor = "red"
 	WireBlue   WireColor = "blue"
-	WireWhite  WireColor = "white"
-	WireOrange WireColor = "orange"
+	WireGreen  WireColor = "green"
+	WireYellow WireColor = "yellow"
 )
 
 // AllWireColors is a list of all available wire colors
-var AllWireColors = []WireColor{WireRed, WireBlue, WireWhite, WireOrange}
+var AllWireColors = []WireColor{WireRed, WireBlue, WireGreen, WireYellow}
 
 // Module represents a single puzzle module on the bomb
 type Module struct {

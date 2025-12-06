@@ -30,7 +30,7 @@ struct Game: Codable, Identifiable {
     let maxStrikes: Int
     let strikes: Int
     let modules: [Module]
-    let activeModuleIndex: Int
+    let activeModuleIndex: Int?
     let bombConnected: Bool
     let expertConnected: Bool
 

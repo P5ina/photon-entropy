@@ -120,16 +120,12 @@ class GameService: ObservableObject {
     }
 
     func startGame(gameId: String) async throws {
-        guard let url = URL(string: "\(baseURL)/api/v1/game/start") else {
+        guard let url = URL(string: "\(baseURL)/api/v1/game/start?game_id=\(gameId)") else {
             throw APIError.invalidURL
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body = ["game_id": gameId]
-        request.httpBody = try JSONEncoder().encode(body)
 
         let (_, response) = try await session.data(for: request)
 

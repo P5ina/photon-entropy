@@ -25,16 +25,6 @@ struct ModuleListView: View {
                     }
 
                     ModuleCard(
-                        title: "Keypad",
-                        icon: "number.circle",
-                        color: .blue,
-                        isSolved: viewModel.isModuleSolved("keypad"),
-                        isActive: viewModel.isModuleActive("keypad")
-                    ) {
-                        RulesListView(rules: manual.keypad)
-                    }
-
-                    ModuleCard(
                         title: "Simon Says",
                         icon: "circle.hexagongrid.fill",
                         color: .purple,

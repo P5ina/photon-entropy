@@ -21,12 +21,11 @@ func NewRuleGenerator(seed int64) *RuleGenerator {
 func (r *RuleGenerator) GenerateModules(count int) []Module {
 	modules := make([]Module, 0, count)
 
-	// Always include certain modules
+	// Always include certain modules (keypad removed - no rotary encoder)
 	moduleTypes := []ModuleType{
-		ModuleWires,  // Always first - it's the most iconic
-		ModuleKeypad, // Code entry
-		ModuleSimon,  // Memory game
-		ModuleMagnet, // Timing puzzle
+		ModuleWires,  // Cut wires in correct order
+		ModuleSimon,  // Color sequence - expert taps on mobile
+		ModuleMagnet, // Timing puzzle - apply magnet at right moment
 	}
 
 	// Shuffle module order

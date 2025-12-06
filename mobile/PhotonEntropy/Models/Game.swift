@@ -155,8 +155,22 @@ struct CreateGameResponse: Codable {
 }
 
 struct JoinGameResponse: Codable {
-    let success: Bool
-    let role: PlayerRole
+    let gameId: String
+    let code: String
+    let state: GameState
+    let timeLimit: Int
+    let modulesCount: Int
+    let bombConnected: Bool
+    let expertConnected: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case gameId = "game_id"
+        case code, state
+        case timeLimit = "time_limit"
+        case modulesCount = "modules_count"
+        case bombConnected = "bomb_connected"
+        case expertConnected = "expert_connected"
+    }
 }
 
 // MARK: - Helper for dynamic JSON

@@ -54,7 +54,7 @@ class GameViewModel: ObservableObject {
 
     func joinGame() async {
         guard !gameId.isEmpty else {
-            error = "Please enter a game ID"
+            error = "Please enter a game code"
             return
         }
 
@@ -62,17 +62,17 @@ class GameViewModel: ObservableObject {
         error = nil
 
         do {
-            // Join as expert
-            _ = try await gameService.joinGame(gameId: gameId, role: .expert)
+            // Join as expert using the code
+            let joinResponse = try await gameService.joinGame(code: gameId.uppercased(), role: .expert)
 
-            // Get game state
-            _ = try await gameService.getGameState(gameId: gameId)
+            // Get game state using the game_id from response
+            _ = try await gameService.getGameState(gameId: joinResponse.gameId)
 
             // Get manual (instructions)
-            _ = try await gameService.getManual(gameId: gameId)
+            _ = try await gameService.getManual(gameId: joinResponse.gameId)
 
             // Connect WebSocket for real-time updates
-            gameService.connectWebSocket(gameId: gameId)
+            gameService.connectWebSocket(gameId: joinResponse.gameId)
 
         } catch {
             self.error = error.localizedDescription

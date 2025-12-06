@@ -63,7 +63,7 @@ class GameService: ObservableObject {
         return try decoder.decode(CreateGameResponse.self, from: data)
     }
 
-    func joinGame(gameId: String, role: PlayerRole) async throws -> JoinGameResponse {
+    func joinGame(code: String, role: PlayerRole) async throws -> JoinGameResponse {
         guard let url = URL(string: "\(baseURL)/api/v1/game/join") else {
             throw APIError.invalidURL
         }
@@ -72,7 +72,7 @@ class GameService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body = ["game_id": gameId, "role": role.rawValue]
+        let body = ["code": code, "role": role.rawValue]
         request.httpBody = try JSONEncoder().encode(body)
 
         let (data, response) = try await session.data(for: request)

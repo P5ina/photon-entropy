@@ -208,6 +208,13 @@ class GameService: ObservableObject {
     }
 
     private func handleGameEvent(type: String, data: [String: Any]) {
+        // Filter events by game_id - ignore events from other games
+        if let eventGameId = data["game_id"] as? String,
+           let currentGameId = currentGame?.id,
+           eventGameId != currentGameId {
+            return
+        }
+
         switch type {
         case "timer_tick":
             if let remaining = data["time_left"] as? Int {

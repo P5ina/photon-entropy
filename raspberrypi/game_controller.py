@@ -39,6 +39,9 @@ class GameController:
         self.strikes = 0
         self.max_strikes = 3
 
+        # Event loop reference for thread-safe async calls
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+
         # Hardware
         self.lcd = LCD(config.lcd_address, mock=self.mock)
         self.buzzer = Buzzer(config.buzzer_pin, mock=self.mock)
@@ -137,10 +140,14 @@ class GameController:
         self.max_strikes = data.get("max_strikes", 3)
 
         # Configure modules from server data
-        modules_config = data.get("modules", {})
-        for name, config in modules_config.items():
-            if name in self.modules:
-                self.modules[name].configure(config)
+        # Server sends modules as array: [{"id": "...", "type": "wires", "config": {...}}, ...]
+        modules_list = data.get("modules", [])
+        for module_data in modules_list:
+            module_type = module_data.get("type")
+            module_config = module_data.get("config", {})
+            if module_type in self.modules:
+                print(f"[Controller] Configuring {module_type}: {module_config}")
+                self.modules[module_type].configure(module_config)
 
         # Activate all modules
         for module in self.modules.values():
@@ -194,9 +201,11 @@ class GameController:
 
     def _on_module_action(self, module_name: str, action: str, data):
         """Handle module action."""
-        if self.client and self.game_id:
-            asyncio.create_task(
-                self.client.report_module_action(module_name, action, data or {})
+        if self.client and self.game_id and self._loop:
+            # Use thread-safe method to schedule coroutine from another thread
+            asyncio.run_coroutine_threadsafe(
+                self.client.report_module_action(module_name, action, data or {}),
+                self._loop
             )
 
     def _on_server_strike(self, count: int):
@@ -269,6 +278,8 @@ class GameController:
 
     async def run(self):
         """Main game loop."""
+        # Store event loop reference for thread-safe async calls
+        self._loop = asyncio.get_running_loop()
         if self.client:
             await self.client.listen()
 

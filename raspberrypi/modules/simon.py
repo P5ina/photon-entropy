@@ -85,7 +85,13 @@ class SimonModule(BaseModule):
             # Brief pause before starting
             time.sleep(0.5)
 
-            for i in range(self._current_round):
+            # Safety check for empty sequence
+            if not self._sequence:
+                print("[Simon] Warning: Empty sequence!")
+                self._showing_sequence = False
+                return
+
+            for i in range(min(self._current_round, len(self._sequence))):
                 if self._stop_sequence.is_set():
                     break
 

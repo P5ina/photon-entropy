@@ -3,7 +3,7 @@ import time
 from typing import Callable, Optional
 
 try:
-    from gpiozero import Button as GPIOButton, DigitalInputDevice, LED as GPIOLED
+    from gpiozero import Button as GPIOButton, LED as GPIOLED
     HAS_GPIO = True
 except ImportError:
     HAS_GPIO = False
@@ -100,7 +100,7 @@ class HallSensor:
         self.mock = mock or not HAS_GPIO
         self._magnet_detected = False
         self.on_magnet: Optional[Callable[[bool], None]] = None
-        self._sensor: Optional[DigitalInputDevice] = None
+        self._sensor: Optional[GPIOButton] = None
 
     def setup(self):
         """Initialize Hall sensor GPIO."""
@@ -108,15 +108,15 @@ class HallSensor:
             print(f"[Hall] Mock mode - pin {self.pin}")
             return
 
+        # Use Button class for reliable Pi 5 compatibility
         # Hall sensor outputs LOW when magnet is present (active low)
-        self._sensor = DigitalInputDevice(self.pin, pull_up=True, bounce_time=0.05)
-        self._sensor.when_activated = lambda: self._handle_change(True)
-        self._sensor.when_deactivated = lambda: self._handle_change(False)
+        # With pull_up=True: is_pressed=True when pin goes LOW (magnet detected)
+        self._sensor = GPIOButton(self.pin, pull_up=True, bounce_time=0.05)
+        self._sensor.when_pressed = lambda: self._handle_change(True)
+        self._sensor.when_released = lambda: self._handle_change(False)
 
     def _handle_change(self, detected: bool):
         """Handle magnet state change."""
-        # Invert because sensor is active low
-        detected = not detected
         if detected != self._magnet_detected:
             self._magnet_detected = detected
             if self.on_magnet:
@@ -127,8 +127,8 @@ class HallSensor:
         if self.mock:
             return self._magnet_detected
         if self._sensor:
-            # Invert because sensor is active low
-            return not self._sensor.value
+            # is_pressed=True when magnet detected (pin LOW)
+            return self._sensor.is_pressed
         return False
 
     def was_magnet_applied(self) -> bool:

@@ -11,7 +11,7 @@ import argparse
 import time
 
 try:
-    from gpiozero import DigitalInputDevice
+    from gpiozero import Button
     HAS_GPIO = True
     GPIO_LIB = "gpiozero"
 except ImportError:
@@ -39,78 +39,52 @@ def test_hall(config: Config, mock: bool = False, raw: bool = False):
 
     print(f"GPIO Library: {GPIO_LIB}")
     print("\nKY-003 Hall sensor: outputs LOW when magnet detected (active LOW)")
+    print("Using gpiozero Button class (works reliably on Pi 5)")
     print("Bring a magnet close to the sensor. Press Ctrl+C to exit.\n")
 
-    # Test with different pull configurations
-    print("-" * 50)
-    print("Testing pin with different configurations...")
-    print("-" * 50)
-
-    # Test 1: With pull-up
-    hall_pullup = DigitalInputDevice(hall_pin, pull_up=True)
-    val_pullup = hall_pullup.value
-    hall_pullup.close()
-    print(f"  With pull_up=True:  {val_pullup} ({'HIGH' if val_pullup else 'LOW'})")
-
-    # Test 2: With pull-down
-    hall_pulldown = DigitalInputDevice(hall_pin, pull_up=False)
-    val_pulldown = hall_pulldown.value
-    hall_pulldown.close()
-    print(f"  With pull_up=False: {val_pulldown} ({'HIGH' if val_pulldown else 'LOW'})")
-
-    # Diagnosis
-    if val_pullup == 0 and val_pulldown == 0:
-        print("\n  ⚠ Pin reads LOW with both pull-up and pull-down!")
-        print("    → Signal wire is likely shorted to GND or sensor output is stuck LOW")
-        print("    → Check wiring: disconnect signal wire and test again")
-    elif val_pullup == 1 and val_pulldown == 1:
-        print("\n  ⚠ Pin reads HIGH with both pull-up and pull-down!")
-        print("    → Signal wire might be shorted to VCC")
-    elif val_pullup == 1 and val_pulldown == 0:
-        print("\n  ✓ Pin responds to pull resistors correctly (floating)")
-        print("    → Sensor may not be connected or powered")
-
-    print("-" * 50)
-
-    # Use DigitalInputDevice for clearer control
-    # pull_up=True provides internal pull-up resistor
-    # The sensor pulls LOW when magnet is detected
-    hall = DigitalInputDevice(hall_pin, pull_up=True, bounce_time=0.05)
+    # Use Button class - works reliably on Pi 5 for active-low sensors
+    # Hall sensor: HIGH = no magnet, LOW = magnet present
+    # With pull_up=True: is_pressed=True when pin goes LOW (magnet detected)
+    hall = Button(hall_pin, pull_up=True, bounce_time=0.05)
     magnet_count = 0
-    last_value = None
+    last_state = None
 
-    def on_activated():
-        # DigitalInputDevice fires when_activated when value goes HIGH
-        print(f"    Magnet removed (pin went HIGH)")
-
-    def on_deactivated():
-        # Fires when value goes LOW - magnet detected!
+    def on_magnet_detected():
         nonlocal magnet_count
         magnet_count += 1
-        print(f"  ✓ MAGNET DETECTED! (pin went LOW, count: {magnet_count})")
+        print(f"  ✓ MAGNET DETECTED! (count: {magnet_count})")
 
-    hall.when_activated = on_activated
-    hall.when_deactivated = on_deactivated
+    def on_magnet_removed():
+        print(f"    Magnet removed")
+
+    hall.when_pressed = on_magnet_detected
+    hall.when_released = on_magnet_removed
+
+    print("-" * 50)
 
     # Show initial state
-    initial_value = hall.value
-    print(f"Continuing with pull_up=True. Current value: {initial_value}")
+    # Note: pin.state is the actual GPIO level, is_pressed is the logical state
+    initial_pressed = hall.is_pressed
+    initial_pin_state = hall.pin.state
+    print(f"Initial state: is_pressed={initial_pressed}, pin.state={initial_pin_state}")
+    print(f"  → {'Magnet present!' if initial_pressed else 'No magnet'}")
 
     if raw:
-        print("\nRAW MODE: Showing continuous pin values...")
+        print("\nRAW MODE: Showing state changes...")
         print("-" * 50)
     else:
-        print("Waiting for magnet...")
+        print("\nWaiting for magnet...")
         print("-" * 50)
 
     try:
         while True:
             if raw:
-                current = hall.value
-                if current != last_value:
-                    status = "HIGH (no magnet)" if current else "LOW (MAGNET!)"
-                    print(f"  Pin value: {current} - {status}")
-                    last_value = current
+                current = hall.is_pressed
+                if current != last_state:
+                    pin_val = hall.pin.state
+                    status = "MAGNET DETECTED" if current else "No magnet"
+                    print(f"  is_pressed={current}, pin.state={pin_val} → {status}")
+                    last_state = current
             time.sleep(0.05)
     except KeyboardInterrupt:
         print(f"\n\nTest ended. Total magnet detections: {magnet_count}")

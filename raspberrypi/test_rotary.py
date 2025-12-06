@@ -94,11 +94,24 @@ def test_raw_gpio(config: Config):
     sw_pin = config.rotary_sw
 
     print(f"\nPins: CLK=GPIO {clk_pin}, DT=GPIO {dt_pin}, SW=GPIO {sw_pin}")
-    print("Reading raw pin states. Rotate encoder / press button. Ctrl+C to exit.\n")
+
+    # Test with a known working pin first - try GPIO 4 which is rarely used
+    print("\nTesting GPIO availability...")
+    try:
+        from gpiozero import Device
+        print(f"Pin factory: {Device.pin_factory}")
+    except Exception as e:
+        print(f"Error getting pin factory: {e}")
+
+    print("\nReading raw pin states. Rotate encoder / press button. Ctrl+C to exit.\n")
 
     clk = InputDevice(clk_pin, pull_up=False)
     dt = InputDevice(dt_pin, pull_up=False)
     sw = InputDevice(sw_pin, pull_up=False)
+
+    print(f"CLK pin info: {clk.pin}")
+    print(f"DT pin info: {dt.pin}")
+    print(f"SW pin info: {sw.pin}")
 
     last_clk = clk.value
     last_dt = dt.value

@@ -118,29 +118,37 @@ class WebSocketClient:
 
     async def _handle_message(self, raw_message: str):
         """Handle incoming message."""
-        try:
-            message = json.loads(raw_message)
-            msg_type = message.get("type", "unknown")
-            data = message.get("data", {})
+        # Server batches multiple JSON messages with newlines between them
+        # Split by newlines and parse each separately
+        lines = raw_message.split("\n")
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
 
-            # Call registered handlers
-            if msg_type in self._handlers:
-                for handler in self._handlers[msg_type]:
-                    try:
-                        handler(data)
-                    except Exception as e:
-                        print(f"[WS] Handler error for {msg_type}: {e}")
+            try:
+                message = json.loads(line)
+                msg_type = message.get("type", "unknown")
+                data = message.get("data", {})
 
-            # Also call wildcard handlers
-            if "*" in self._handlers:
-                for handler in self._handlers["*"]:
-                    try:
-                        handler({"type": msg_type, "data": data})
-                    except Exception as e:
-                        print(f"[WS] Wildcard handler error: {e}")
+                # Call registered handlers
+                if msg_type in self._handlers:
+                    for handler in self._handlers[msg_type]:
+                        try:
+                            handler(data)
+                        except Exception as e:
+                            print(f"[WS] Handler error for {msg_type}: {e}")
 
-        except json.JSONDecodeError as e:
-            print(f"[WS] Invalid JSON: {e}")
+                # Also call wildcard handlers
+                if "*" in self._handlers:
+                    for handler in self._handlers["*"]:
+                        try:
+                            handler({"type": msg_type, "data": data})
+                        except Exception as e:
+                            print(f"[WS] Wildcard handler error: {e}")
+
+            except json.JSONDecodeError as e:
+                print(f"[WS] Invalid JSON: {e}")
 
     async def run(self):
         """Connect and start listening."""

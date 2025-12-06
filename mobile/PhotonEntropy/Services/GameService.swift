@@ -194,16 +194,24 @@ class GameService: ObservableObject {
     }
 
     private func handleMessage(_ message: URLSessionWebSocketTask.Message) {
-        guard case .string(let text) = message,
-              let data = text.data(using: .utf8) else { return }
+        guard case .string(let text) = message else { return }
 
-        do {
-            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let type = json["type"] as? String {
-                handleGameEvent(type: type, data: json["data"] as? [String: Any] ?? [:])
+        // Server batches multiple JSON messages with newlines between them
+        // Split by newlines and parse each separately
+        let lines = text.components(separatedBy: "\n")
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty,
+                  let data = trimmed.data(using: .utf8) else { continue }
+
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let type = json["type"] as? String {
+                    handleGameEvent(type: type, data: json["data"] as? [String: Any] ?? [:])
+                }
+            } catch {
+                print("[GameWS] Decode error for line: \(error)")
             }
-        } catch {
-            print("[GameWS] Decode error: \(error)")
         }
     }
 

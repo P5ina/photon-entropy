@@ -12,7 +12,6 @@ This document lists all hardware components required to build the physical "bomb
 |-----------|----------|---------|-------|
 | Raspberry Pi 4/5 | 1 | Main controller | Any model with GPIO and I2C |
 | LCD 16x2 I2C | 1 | Display timer, codes, hints | I2C address: 0x27 or 0x3F |
-| ADS1115 ADC | 1 | Analog sensors (future) | I2C address: 0x48 |
 | Breadboard | 1-2 | Prototyping | 830 points recommended |
 | Jumper wires | ~40 | Connections | Male-to-female, male-to-male |
 | Resistors 10kΩ | 4 | Pull-down for buttons | For WIRES module |
@@ -97,7 +96,6 @@ Note: GPIO 24 (Tilt Sensor) is no longer used.
 
 I2C Devices:
   - LCD 16x2:  SDA=GPIO2, SCL=GPIO3, Address=0x27/0x3F
-  - ADS1115:   SDA=GPIO2, SCL=GPIO3, Address=0x48
 
 PWM Pins (for RGB LED):
   - Red:   GPIO 17

@@ -355,8 +355,17 @@ class GameClient(WebSocketClient):
 
     async def report_module_action(self, module: str, action: str, data: dict = None):
         """Report a module action to the server via REST API."""
-        # Extract wire index from data for wires module
-        value = data.get("wire") if data else None
+        # Extract value based on action type
+        value = None
+        if data:
+            if action == "cut_wire":
+                value = data.get("wire")
+            elif action == "enter_digit":
+                value = data.get("digit")
+            elif action == "tap":
+                value = data.get("taps")
+            # apply_magnet doesn't need a value
+
         result = self.send_action(module, action, value)
 
         if result:

@@ -43,7 +43,7 @@ struct ModuleListView: View {
 
                     ModuleCard(
                         title: "Magnet",
-                        icon: "magnet",
+                        icon: "sensor.tag.radiowaves.forward",
                         color: .orange,
                         isSolved: viewModel.isModuleSolved("magnet")
                     ) {

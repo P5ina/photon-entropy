@@ -195,7 +195,7 @@ class GameClient(WebSocketClient):
 
     def _setup_handlers(self):
         """Set up game event handlers."""
-        self.register_handler("game_created", self._on_game_created)
+        # Note: game_created is handled via REST API callback, not WebSocket
         self.register_handler("game_started", self._on_game_started)
         self.register_handler("timer_tick", self._on_timer_tick)
         self.register_handler("module_solved", self._on_module_solved)

@@ -96,15 +96,14 @@ class SimonModule(BaseModule):
                 self.rgb.off()
                 if self.mock:
                     print(f"[Simon] Awaiting input for {color}")
-                # Set timeout for input
-                self._start_input_timeout()
+                # No auto-timeout - wait for player to tap
 
         thread = threading.Thread(target=start_input)
         thread.daemon = True
         thread.start()
 
     def _start_input_timeout(self):
-        """Start timeout for player input."""
+        """Start timeout for player input after first tap."""
         self._cancel_input_timeout()
 
         def on_timeout():

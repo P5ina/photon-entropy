@@ -82,6 +82,9 @@ class GameController:
         self.on_game_won: Optional[Callable[[], None]] = None
         self.on_game_lost: Optional[Callable[[str], None]] = None
 
+        # Restart event
+        self._restart_event: Optional[asyncio.Event] = None
+
     def setup(self):
         """Initialize all hardware."""
         print("[Controller] Setting up hardware...")
@@ -249,6 +252,9 @@ class GameController:
         if self.on_game_won:
             self.on_game_won()
 
+        # Schedule restart prompt
+        self._schedule_restart_prompt()
+
     def _game_lost(self, reason: str):
         """Handle game loss."""
         self.phase = GamePhase.LOST
@@ -263,6 +269,9 @@ class GameController:
         print(f"[Controller] GAME LOST: {reason}")
         if self.on_game_lost:
             self.on_game_lost(reason)
+
+        # Schedule restart prompt
+        self._schedule_restart_prompt()
 
     def create_game(self):
         """Create a new game and display code on LCD."""
@@ -302,11 +311,53 @@ class GameController:
         self.game_id = None
         self.time_remaining = 0
         self.strikes = 0
+        self._restart_event = None
 
         for module in self.modules.values():
             module.reset()
 
         self.lcd.show_message("BOMB DEFUSAL", "Waiting...")
+
+    def _schedule_restart_prompt(self):
+        """Show restart prompt after game ends."""
+        import threading
+
+        def show_prompt():
+            import time
+            time.sleep(3)  # Wait 3 seconds to show result
+            if self.phase in (GamePhase.WON, GamePhase.LOST):
+                self.lcd.show_message("Press any btn", "to play again")
+                print("[Controller] Press any button to restart...")
+                # Set up button listeners for restart
+                self._setup_restart_listeners()
+
+        thread = threading.Thread(target=show_prompt, daemon=True)
+        thread.start()
+
+    def _setup_restart_listeners(self):
+        """Set up button listeners to trigger restart."""
+        # Use the wire buttons to trigger restart
+        def restart_on_any_button(index: int):
+            if self.phase in (GamePhase.WON, GamePhase.LOST):
+                print(f"[Controller] Restart triggered by button {index}")
+                self._trigger_restart()
+
+        self.wires.buttons.set_all_callbacks(restart_on_any_button)
+
+    def _trigger_restart(self):
+        """Trigger game restart."""
+        if self._restart_event and self._loop:
+            self._loop.call_soon_threadsafe(self._restart_event.set)
+
+    async def wait_for_restart(self):
+        """Wait for restart to be triggered."""
+        self._restart_event = asyncio.Event()
+        await self._restart_event.wait()
+
+    async def disconnect(self):
+        """Disconnect from server."""
+        if self.client:
+            await self.client.disconnect()
 
     def cleanup(self):
         """Clean up all resources."""

@@ -56,33 +56,50 @@ async def main():
         # Initialize hardware
         controller.setup()
 
-        # Connect to server
-        await controller.connect(config.server_url)
+        # Game loop - keeps running until shutdown
+        while not shutdown_event.is_set():
+            # Connect to server
+            await controller.connect(config.server_url)
 
-        # Create or join game
-        if args.game_id:
-            # Join by code via REST API
-            controller.join_game_by_code(args.game_id)
-        else:
-            # Create a new game and display code on LCD
-            controller.create_game()
+            # Create or join game
+            if args.game_id:
+                # Join by code via REST API
+                controller.join_game_by_code(args.game_id)
+            else:
+                # Create a new game and display code on LCD
+                controller.create_game()
 
-        # Run game loop
-        print("[Main] Starting game loop...")
+            # Run game loop
+            print("[Main] Starting game loop...")
 
-        # Create tasks
-        game_task = asyncio.create_task(controller.run())
-        shutdown_task = asyncio.create_task(shutdown_event.wait())
+            # Create tasks
+            game_task = asyncio.create_task(controller.run())
+            shutdown_task = asyncio.create_task(shutdown_event.wait())
+            restart_task = asyncio.create_task(controller.wait_for_restart())
 
-        # Wait for either game to end or shutdown
-        done, pending = await asyncio.wait(
-            [game_task, shutdown_task],
-            return_when=asyncio.FIRST_COMPLETED
-        )
+            # Wait for game to end, restart request, or shutdown
+            done, pending = await asyncio.wait(
+                [game_task, shutdown_task, restart_task],
+                return_when=asyncio.FIRST_COMPLETED
+            )
 
-        # Cancel pending tasks
-        for task in pending:
-            task.cancel()
+            # Cancel pending tasks
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            # Check if we should restart
+            if restart_task in done and not shutdown_event.is_set():
+                print("[Main] Restarting game...")
+                controller.reset()
+                await controller.disconnect()
+                await asyncio.sleep(1)  # Brief pause before reconnecting
+                continue
+            else:
+                break
 
     except KeyboardInterrupt:
         print("\n[Main] Interrupted")

@@ -90,7 +90,9 @@ func main() {
 				"data":      event.Data,
 			})
 		case game.EventModuleSolved:
-			hub.BroadcastModuleSolved(event.GameID, event.ModuleID)
+			nextModuleID, _ := event.Data["next_module_id"].(string)
+			activeModuleIndex, _ := event.Data["active_module_index"].(int)
+			hub.BroadcastModuleSolved(event.GameID, event.ModuleID, nextModuleID, activeModuleIndex)
 		case game.EventStrike:
 			strikes, _ := event.Data["strikes"].(int)
 			maxStrikes, _ := event.Data["max_strikes"].(int)
@@ -102,6 +104,14 @@ func main() {
 		case game.EventGameLost:
 			reason, _ := event.Data["reason"].(string)
 			hub.BroadcastGameEnd(event.GameID, false, reason, 0)
+		case game.EventMagnetState:
+			hub.BroadcastGameEvent(ws.MessageTypeMagnetState, map[string]any{
+				"game_id":       event.GameID,
+				"module_id":     event.ModuleID,
+				"led_color":     event.Data["led_color"],
+				"buzzer_active": event.Data["buzzer_active"],
+				"safe_window":   event.Data["safe_window"],
+			})
 		}
 	}
 

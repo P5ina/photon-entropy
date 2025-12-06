@@ -20,6 +20,7 @@ const (
 	MessageTypeGameWon      MessageType = "game_won"
 	MessageTypeGameLost     MessageType = "game_lost"
 	MessageTypeGameState    MessageType = "game_state"
+	MessageTypeMagnetState  MessageType = "magnet_state"
 
 	// Device events
 	MessageTypeDeviceUpdate MessageType = "device_update"
@@ -187,12 +188,14 @@ func (h *Hub) BroadcastStrike(gameID, moduleID, reason string, strikes, maxStrik
 }
 
 // BroadcastModuleSolved sends module solved notification
-func (h *Hub) BroadcastModuleSolved(gameID, moduleID string) {
+func (h *Hub) BroadcastModuleSolved(gameID, moduleID, nextModuleID string, activeModuleIndex int) {
 	h.Broadcast(Message{
 		Type: MessageTypeModuleSolved,
 		Data: map[string]any{
-			"game_id":   gameID,
-			"module_id": moduleID,
+			"game_id":             gameID,
+			"module_id":           moduleID,
+			"next_module_id":      nextModuleID,
+			"active_module_index": activeModuleIndex,
 		},
 	})
 }

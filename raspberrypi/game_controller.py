@@ -100,6 +100,7 @@ class GameController:
         # Set up callbacks
         self.client.on_connect = self._on_connected
         self.client.on_disconnect = self._on_disconnected
+        self.client.on_game_created = self._on_game_created
         self.client.on_game_started = self._on_game_started
         self.client.on_timer_tick = self._on_timer_tick
         self.client.on_strike = self._on_server_strike
@@ -113,6 +114,12 @@ class GameController:
         """Handle connection."""
         self.phase = GamePhase.WAITING
         print("[Controller] Connected to server")
+
+    def _on_game_created(self, data: dict):
+        """Handle game created - display code on LCD."""
+        self.game_id = data.get("game_id", "")
+        print(f"[Controller] Game created: {self.game_id}")
+        self.lcd.write("GAME CODE:", self.game_id.upper())
 
     def _on_disconnected(self):
         """Handle disconnection."""
@@ -233,6 +240,12 @@ class GameController:
         print(f"[Controller] GAME LOST: {reason}")
         if self.on_game_lost:
             self.on_game_lost(reason)
+
+    async def create_game(self):
+        """Create a new game and display code on LCD."""
+        if self.client:
+            self.lcd.write("Creating game...", "")
+            await self.client.create_game()
 
     async def join_game(self, game_id: str):
         """Join a game."""

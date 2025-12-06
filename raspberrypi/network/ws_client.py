@@ -245,6 +245,13 @@ class GameClient(WebSocketClient):
         """Handle game state update."""
         self.game_state = data
 
+    async def create_game(self):
+        """Create a new game as defuser."""
+        await self.send("create_game", {
+            "device_id": self.device_id,
+            "role": "defuser"
+        })
+
     async def join_game(self, game_id: str):
         """Join a game as defuser."""
         self.game_id = game_id

@@ -59,9 +59,12 @@ async def main():
         # Connect to server
         await controller.connect(config.server_url)
 
-        # Join game if specified
+        # Create or join game
         if args.game_id:
             await controller.join_game(args.game_id)
+        else:
+            # Create a new game and display code on LCD
+            await controller.create_game()
 
         # Run game loop
         print("[Main] Starting game loop...")

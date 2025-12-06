@@ -13,7 +13,7 @@ class Config:
     device_id: str = "bomb-001"
 
     # GPIO pins - Wires module (4 buttons + 4 LEDs)
-    wire_buttons: tuple = (19, 26, 21, 20)
+    wire_buttons: tuple = (19, 26, 24, 20)  # Button 3 moved from GPIO 21 to 24
     wire_leds: tuple = (25, 8, 7, 1)
 
     # GPIO pins - Keypad module (rotary encoder)

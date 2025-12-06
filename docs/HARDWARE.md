@@ -25,8 +25,8 @@ This document lists all hardware components required to build the physical "bomb
 | Component | KY Module | GPIO | Description |
 |-----------|-----------|------|-------------|
 | Button 1 (Red) | - | GPIO 19 | Tactile button |
-| Button 2 (Green) | - | GPIO 26 | Tactile button |
-| Button 3 (Blue) | - | GPIO 21 | Tactile button |
+| Button 2 (Blue) | - | GPIO 26 | Tactile button |
+| Button 3 (Green) | - | GPIO 24 | Tactile button |
 | Button 4 (Yellow) | - | GPIO 20 | Tactile button |
 | LED 1 (Red) | - | GPIO 25 | Wire color indicator |
 | LED 2 (Blue) | - | GPIO 8 | Wire color indicator |
@@ -77,7 +77,7 @@ Raspberry Pi GPIO Layout (Active pins marked with ←)
     RGB LED Red   GPIO17 [11] [12] GPIO18  ← Buzzer (PWM)
   RGB LED Green   GPIO27 [13] [14] GND
    RGB LED Blue   GPIO22 [15] [16] GPIO23
-                   3.3V  [17] [18] GPIO24
+                   3.3V  [17] [18] GPIO24  ← Button 3
                   GPIO10 [19] [20] GND
                    GPIO9 [21] [22] GPIO25  ← LED 1 (Red)
                   GPIO11 [23] [24] GPIO8   ← LED 2 (Blue)
@@ -88,12 +88,12 @@ Raspberry Pi GPIO Layout (Active pins marked with ←)
    Rotary SW      GPIO13 [33] [34] GND
    Button 1       GPIO19 [35] [36] GPIO16  ← Hall Sensor
    Button 2       GPIO26 [37] [38] GPIO20  ← Button 4
-                    GND  [39] [40] GPIO21  ← Button 3
+                    GND  [39] [40] GPIO21
 ─────────────────────────────────────────────────────
 
 Used GPIO Pins:
   WIRES module:
-    - Buttons: GPIO 19, 26, 21, 20
+    - Buttons: GPIO 19, 26, 24, 20
     - LEDs:    GPIO 25, 8, 7, 1
 
   KEYPAD module (Rotary Encoder):

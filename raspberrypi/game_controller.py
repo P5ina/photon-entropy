@@ -135,13 +135,17 @@ class GameController:
         """Handle game start."""
         self.phase = GamePhase.PLAYING
         self.game_id = data.get("game_id")
-        self.time_remaining = data.get("time_limit", 300)
+
+        # Server wraps game data inside "data" field
+        game_data = data.get("data", data)
+        self.time_remaining = game_data.get("time_limit", 300)
         self.strikes = 0
-        self.max_strikes = data.get("max_strikes", 3)
+        self.max_strikes = game_data.get("max_strikes", 3)
 
         # Configure modules from server data
         # Server sends modules as array: [{"id": "...", "type": "wires", "config": {...}}, ...]
-        modules_list = data.get("modules", [])
+        modules_list = game_data.get("modules", [])
+        print(f"[Controller] Received {len(modules_list)} modules")
         for module_data in modules_list:
             module_type = module_data.get("type")
             module_config = module_data.get("config", {})

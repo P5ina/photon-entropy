@@ -160,7 +160,7 @@ See `docs/HARDWARE.md` for complete wiring diagram.
 
 | Component | GPIO Pins |
 |-----------|-----------|
-| Wire buttons | 19, 26, 21, 20 |
+| Wire buttons | 19, 26, 21, 15 |
 | Wire LEDs | 25, 8, 7, 1 |
 | Rotary encoder | CLK:5, DT:6, SW:13 |
 | RGB LED | R:17, G:27, B:22 |

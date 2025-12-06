@@ -8,7 +8,6 @@ from hardware.lcd import LCD
 from hardware.buzzer import Buzzer
 from modules import (
     WiresModule,
-    KeypadModule,
     SimonModule,
     MagnetModule,
     ModuleState,
@@ -55,12 +54,6 @@ class GameController:
             config.wire_leds,
             mock=self.mock
         )
-        self.keypad = KeypadModule(
-            config.rotary_clk,
-            config.rotary_dt,
-            config.rotary_sw,
-            mock=self.mock
-        )
         self.simon = SimonModule(
             (config.rgb_red, config.rgb_green, config.rgb_blue),
             config.touch_pin,
@@ -70,7 +63,6 @@ class GameController:
 
         self.modules = {
             "wires": self.wires,
-            "keypad": self.keypad,
             "simon": self.simon,
             "magnet": self.magnet,
         }

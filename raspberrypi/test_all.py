@@ -31,7 +31,6 @@ def main():
     tests = [
         ("test_leds.py", "LEDs (Wire + RGB)"),
         ("test_buttons.py", "Buttons"),
-        ("test_rotary.py", "Rotary Encoder"),
         ("test_touch.py", "Touch Sensor"),
         ("test_hall.py", "Hall Sensor"),
         ("test_buzzer.py", "Buzzer"),

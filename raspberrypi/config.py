@@ -17,12 +17,6 @@ class Config:
     wire_buttons: tuple = (19, 26, 21, 15)  # Button 4 on GPIO 15 (Pin 10)
     wire_leds: tuple = (25, 8, 7, 1)
 
-    # GPIO pins - Keypad module (rotary encoder)
-    # Note: GPIO 5/6 conflict with I2C1 on Pi 5, using alternative pins
-    rotary_clk: int = 23
-    rotary_dt: int = 24
-    rotary_sw: int = 20
-
     # GPIO pins - Simon module (RGB LED + touch)
     rgb_red: int = 17
     rgb_green: int = 27

@@ -110,9 +110,9 @@ def test_raw_gpio(config: Config):
 
     print("\nReading raw pin states. Rotate encoder / press button. Ctrl+C to exit.\n")
 
-    clk = InputDevice(clk_pin, pull_up=False)
-    dt = InputDevice(dt_pin, pull_up=False)
-    sw = InputDevice(sw_pin, pull_up=False)
+    clk = InputDevice(clk_pin, pull_up=True)
+    dt = InputDevice(dt_pin, pull_up=True)
+    sw = InputDevice(sw_pin, pull_up=True)
 
     print(f"CLK pin info: {clk.pin}")
     print(f"DT pin info: {dt.pin}")

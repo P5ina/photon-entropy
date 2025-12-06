@@ -256,8 +256,9 @@ class GameClient(WebSocketClient):
         self.game_state = data
 
     def create_game(self, time_limit: int = 300, max_strikes: int = 3) -> Optional[dict]:
-        """Create a new game via REST API."""
+        """Create a new game via REST API and join as bomb."""
         try:
+            # Create the game
             url = f"{self.http_base_url}/api/v1/game/create"
             response = requests.post(url, json={
                 "time_limit": time_limit,
@@ -268,6 +269,13 @@ class GameClient(WebSocketClient):
             self.game_id = data.get("game_id")
             self.game_code = data.get("code")
             print(f"[Game] Created game: {self.game_code}")
+
+            # Join the game as bomb
+            join_result = self.join_game_http(self.game_code)
+            if not join_result:
+                print(f"[Game] Failed to join game as bomb")
+                return None
+
             if self.on_game_created:
                 self.on_game_created(data)
             return data

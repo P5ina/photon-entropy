@@ -65,6 +65,11 @@ class GameViewModel: ObservableObject {
             // Join as expert using the code
             let joinResponse = try await gameService.joinGame(code: gameId.uppercased(), role: .expert)
 
+            // Start the game if bomb is connected
+            if joinResponse.bombConnected {
+                try await gameService.startGame(gameId: joinResponse.gameId)
+            }
+
             // Get game state using the game_id from response
             _ = try await gameService.getGameState(gameId: joinResponse.gameId)
 

@@ -10,7 +10,7 @@ import argparse
 import time
 
 try:
-    from gpiozero import RotaryEncoder, Button
+    from gpiozero import RotaryEncoder, Button, InputDevice
     HAS_GPIO = True
     GPIO_LIB = "gpiozero"
 except ImportError:
@@ -83,15 +83,75 @@ def test_rotary(config: Config, mock: bool = False):
         button.close()
 
 
+def test_raw_gpio(config: Config):
+    """Test raw GPIO pin states (for debugging)."""
+    print("=" * 50)
+    print("RAW GPIO TEST")
+    print("=" * 50)
+
+    clk_pin = config.rotary_clk
+    dt_pin = config.rotary_dt
+    sw_pin = config.rotary_sw
+
+    print(f"\nPins: CLK=GPIO {clk_pin}, DT=GPIO {dt_pin}, SW=GPIO {sw_pin}")
+    print("Reading raw pin states. Rotate encoder / press button. Ctrl+C to exit.\n")
+
+    clk = InputDevice(clk_pin, pull_up=True)
+    dt = InputDevice(dt_pin, pull_up=True)
+    sw = InputDevice(sw_pin, pull_up=True)
+
+    last_clk = clk.value
+    last_dt = dt.value
+    last_sw = sw.value
+
+    print(f"Initial: CLK={last_clk} DT={last_dt} SW={last_sw}")
+    print("-" * 50)
+
+    try:
+        while True:
+            curr_clk = clk.value
+            curr_dt = dt.value
+            curr_sw = sw.value
+
+            if curr_clk != last_clk or curr_dt != last_dt or curr_sw != last_sw:
+                print(f"CLK={curr_clk} DT={curr_dt} SW={curr_sw}", end="")
+                if curr_clk != last_clk:
+                    print(f"  [CLK changed]", end="")
+                if curr_dt != last_dt:
+                    print(f"  [DT changed]", end="")
+                if curr_sw != last_sw:
+                    print(f"  [SW {'pressed' if curr_sw == 0 else 'released'}]", end="")
+                print()
+
+                last_clk = curr_clk
+                last_dt = curr_dt
+                last_sw = curr_sw
+
+            time.sleep(0.005)
+    except KeyboardInterrupt:
+        print("\n\nTest ended.")
+    finally:
+        clk.close()
+        dt.close()
+        sw.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Test rotary encoder for Bomb Defusal game")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode")
+    parser.add_argument("--raw", action="store_true", help="Test raw GPIO states")
     args = parser.parse_args()
 
     config = Config.from_env()
     mock = args.mock or not HAS_GPIO
 
-    test_rotary(config, mock)
+    if args.raw:
+        if not HAS_GPIO:
+            print("Cannot test raw GPIO in mock mode")
+            return
+        test_raw_gpio(config)
+    else:
+        test_rotary(config, mock)
 
 
 if __name__ == "__main__":

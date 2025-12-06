@@ -377,14 +377,31 @@ func (r *RuleGenerator) GetMagnetManual() []string {
 }
 
 // GetFullManual returns the complete manual for all modules
+// Must generate in the same order as GenerateModules to keep RNG in sync
 func (r *RuleGenerator) GetFullManual() map[string][]string {
-	// Reset RNG to ensure consistent manual generation
-	r.rng = rand.New(rand.NewSource(r.rng.Int63()))
+	manual := make(map[string][]string)
 
-	return map[string][]string{
-		"wires":  r.GetWiresManual(),
-		"keypad": r.GetKeypadManual(),
-		"simon":  r.GetSimonManual(),
-		"magnet": r.GetMagnetManual(),
+	// Reproduce the same module order as GenerateModules
+	moduleTypes := []ModuleType{
+		ModuleWires,
+		ModuleSimon,
+		ModuleMagnet,
 	}
+
+	// Shuffle in same way as GenerateModules
+	r.shuffleModuleTypes(moduleTypes)
+
+	// Generate manuals in the same order as modules were generated
+	for _, modType := range moduleTypes {
+		switch modType {
+		case ModuleWires:
+			manual["wires"] = r.GetWiresManual()
+		case ModuleSimon:
+			manual["simon"] = r.GetSimonManual()
+		case ModuleMagnet:
+			manual["magnet"] = r.GetMagnetManual()
+		}
+	}
+
+	return manual
 }

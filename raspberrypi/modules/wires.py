@@ -16,8 +16,8 @@ class WiresModule(BaseModule):
         self.buttons = ButtonGroup(button_pins, mock=mock)
         self.leds = LEDGroup(led_pins, mock=mock)
 
-        # Wire colors: Red, Blue, White, Orange (index 0-3)
-        self.wire_colors = ["red", "blue", "white", "orange"]
+        # Wire colors: Red, Blue, Green, Yellow (index 0-3)
+        self.wire_colors = ["red", "blue", "green", "yellow"]
         self._cut_order: list[int] = []  # Required cut order
         self._cuts_made: list[int] = []  # Wires already cut
         self._wire_states: list[bool] = [True, True, True, True]  # True = intact

@@ -100,76 +100,62 @@ func (r *RuleGenerator) shuffleWireColors(colors []WireColor) {
 }
 
 // determineWireCuts applies rules to determine which wires to cut
+// With 4 unique colors (red, blue, green, yellow), rules are based on positions
 func (r *RuleGenerator) determineWireCuts(wires []WireColor) []int {
 	// Rule set (varies by seed via random selection)
 	ruleSet := r.rng.Intn(4)
 
-	switch ruleSet {
-	case 0:
-		// If more than one red wire, cut the last red
-		// Otherwise cut the second wire
-		redCount := 0
-		lastRedIdx := -1
+	// Helper to find position of a color
+	findColor := func(color WireColor) int {
 		for i, w := range wires {
-			if w == WireRed {
-				redCount++
-				lastRedIdx = i
+			if w == color {
+				return i
 			}
 		}
-		if redCount > 1 && lastRedIdx >= 0 {
-			return []int{lastRedIdx}
+		return -1
+	}
+
+	switch ruleSet {
+	case 0:
+		// If red is before blue, cut the red wire
+		// Otherwise, cut the third wire
+		redPos := findColor(WireRed)
+		bluePos := findColor(WireBlue)
+		if redPos < bluePos {
+			return []int{redPos}
 		}
-		return []int{1} // Second wire (0-indexed)
+		return []int{2}
 
 	case 1:
-		// If last wire is yellow, cut first wire
-		// Otherwise cut the wire after the first blue
+		// If yellow is last, cut the first wire
+		// Otherwise, cut the wire after blue
 		if wires[3] == WireYellow {
 			return []int{0}
 		}
-		for i, w := range wires {
-			if w == WireBlue && i < 3 {
-				return []int{i + 1}
-			}
+		bluePos := findColor(WireBlue)
+		if bluePos < 3 {
+			return []int{bluePos + 1}
 		}
 		return []int{0}
 
 	case 2:
-		// If no blue wires, cut the second wire
-		// Otherwise cut the last wire
-		hasBlue := false
-		for _, w := range wires {
-			if w == WireBlue {
-				hasBlue = true
-				break
-			}
-		}
-		if !hasBlue {
-			return []int{1}
+		// If green is in first or second position, cut green
+		// Otherwise, cut the last wire
+		greenPos := findColor(WireGreen)
+		if greenPos <= 1 {
+			return []int{greenPos}
 		}
 		return []int{3}
 
 	case 3:
-		// If green is first, cut the last wire
-		// If there are exactly two yellow wires, cut the first yellow
-		// Otherwise cut the third wire
-		if wires[0] == WireGreen {
-			return []int{3}
+		// If blue is adjacent to yellow, cut blue
+		// Otherwise, cut the second wire
+		bluePos := findColor(WireBlue)
+		yellowPos := findColor(WireYellow)
+		if bluePos == yellowPos+1 || bluePos == yellowPos-1 {
+			return []int{bluePos}
 		}
-		yellowCount := 0
-		firstYellowIdx := -1
-		for i, w := range wires {
-			if w == WireYellow {
-				yellowCount++
-				if firstYellowIdx < 0 {
-					firstYellowIdx = i
-				}
-			}
-		}
-		if yellowCount == 2 && firstYellowIdx >= 0 {
-			return []int{firstYellowIdx}
-		}
-		return []int{2}
+		return []int{1}
 	}
 
 	return []int{0}
@@ -274,25 +260,23 @@ func (r *RuleGenerator) GetWiresManual() []string {
 	switch ruleSet {
 	case 0:
 		return []string{
-			"If there is more than one red wire, cut the last red wire.",
-			"Otherwise, cut the second wire.",
+			"If red is before blue (reading left to right), cut the red wire.",
+			"Otherwise, cut the third wire.",
 		}
 	case 1:
 		return []string{
-			"If the last wire is yellow, cut the first wire.",
-			"Otherwise, cut the wire immediately after the first blue wire.",
-			"If there is no blue wire, cut the first wire.",
+			"If yellow is in the last position, cut the first wire.",
+			"Otherwise, cut the wire immediately after blue.",
 		}
 	case 2:
 		return []string{
-			"If there are no blue wires, cut the second wire.",
+			"If green is in position 1 or 2, cut the green wire.",
 			"Otherwise, cut the last wire.",
 		}
 	case 3:
 		return []string{
-			"If the first wire is green, cut the last wire.",
-			"If there are exactly two yellow wires, cut the first yellow wire.",
-			"Otherwise, cut the third wire.",
+			"If blue is next to yellow, cut the blue wire.",
+			"Otherwise, cut the second wire.",
 		}
 	}
 

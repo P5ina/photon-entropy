@@ -140,9 +140,21 @@ def main():
     parser = argparse.ArgumentParser(description="Test rotary encoder for Bomb Defusal game")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode")
     parser.add_argument("--raw", action="store_true", help="Test raw GPIO states")
+    parser.add_argument("--clk", type=int, help="Override CLK pin")
+    parser.add_argument("--dt", type=int, help="Override DT pin")
+    parser.add_argument("--sw", type=int, help="Override SW pin")
     args = parser.parse_args()
 
     config = Config.from_env()
+
+    # Override pins if specified
+    if args.clk:
+        config.rotary_clk = args.clk
+    if args.dt:
+        config.rotary_dt = args.dt
+    if args.sw:
+        config.rotary_sw = args.sw
+
     mock = args.mock or not HAS_GPIO
 
     if args.raw:

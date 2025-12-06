@@ -84,56 +84,25 @@ struct MagnetConfig: Codable {
 
 // MARK: - Manual (Instructions for Expert)
 
+struct ManualResponse: Codable {
+    let gameId: String
+    let seed: Int64
+    let activeModules: [String]
+    let manual: GameManual
+
+    enum CodingKeys: String, CodingKey {
+        case gameId = "game_id"
+        case seed
+        case activeModules = "active_modules"
+        case manual
+    }
+}
+
 struct GameManual: Codable {
-    let wires: WiresManual
-    let keypad: KeypadManual
-    let simon: SimonManual
-    let magnet: MagnetManual
-}
-
-struct WiresManual: Codable {
-    let colors: [String]
-    let cutOrder: [Int]
-    let rules: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case colors
-        case cutOrder = "cut_order"
-        case rules
-    }
-}
-
-struct KeypadManual: Codable {
-    let codeLength: Int
-    let hints: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case codeLength = "code_length"
-        case hints
-    }
-}
-
-struct SimonManual: Codable {
-    let rounds: Int
-    let colorMapping: [String: String]
-    let rules: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case rounds
-        case colorMapping = "color_mapping"
-        case rules
-    }
-}
-
-struct MagnetManual: Codable {
-    let safeZones: [[Int]]
-    let required: Int
-    let hints: [String]
-
-    enum CodingKeys: String, CodingKey {
-        case safeZones = "safe_zones"
-        case required, hints
-    }
+    let wires: [String]
+    let keypad: [String]
+    let simon: [String]
+    let magnet: [String]
 }
 
 // MARK: - API Responses

@@ -20,7 +20,7 @@ struct ModuleListView: View {
                         color: .red,
                         isSolved: viewModel.isModuleSolved("wires")
                     ) {
-                        WiresInstructionsView(manual: manual.wires)
+                        RulesListView(rules: manual.wires)
                     }
 
                     ModuleCard(
@@ -29,7 +29,7 @@ struct ModuleListView: View {
                         color: .blue,
                         isSolved: viewModel.isModuleSolved("keypad")
                     ) {
-                        KeypadInstructionsView(manual: manual.keypad)
+                        RulesListView(rules: manual.keypad)
                     }
 
                     ModuleCard(
@@ -38,7 +38,7 @@ struct ModuleListView: View {
                         color: .purple,
                         isSolved: viewModel.isModuleSolved("simon")
                     ) {
-                        SimonInstructionsView(manual: manual.simon)
+                        RulesListView(rules: manual.simon)
                     }
 
                     ModuleCard(
@@ -47,7 +47,7 @@ struct ModuleListView: View {
                         color: .orange,
                         isSolved: viewModel.isModuleSolved("magnet")
                     ) {
-                        MagnetInstructionsView(manual: manual.magnet)
+                        RulesListView(rules: manual.magnet)
                     }
                 } else {
                     ProgressView("Loading instructions...")
@@ -118,206 +118,19 @@ struct ModuleCard<Content: View>: View {
     }
 }
 
-// MARK: - Wires Instructions
+// MARK: - Rules List View
 
-struct WiresInstructionsView: View {
-    let manual: WiresManual
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("WIRE COLORS:")
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 8) {
-                ForEach(manual.colors, id: \.self) { color in
-                    WireColorBadge(color: color)
-                }
-            }
-
-            Divider()
-
-            Text("CUT ORDER:")
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 4) {
-                ForEach(Array(manual.cutOrder.enumerated()), id: \.offset) { index, wireIndex in
-                    HStack(spacing: 2) {
-                        Text("\(index + 1).")
-                            .font(.caption)
-                        WireColorBadge(color: manual.colors[wireIndex])
-                    }
-                }
-            }
-
-            if !manual.rules.isEmpty {
-                Divider()
-
-                Text("RULES:")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-
-                ForEach(manual.rules, id: \.self) { rule in
-                    HStack(alignment: .top) {
-                        Text("•")
-                        Text(rule)
-                            .font(.subheadline)
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct WireColorBadge: View {
-    let color: String
-
-    var swiftUIColor: Color {
-        switch color.lowercased() {
-        case "red": return .red
-        case "blue": return .blue
-        case "white": return .white
-        case "orange": return .orange
-        case "yellow": return .yellow
-        case "green": return .green
-        default: return .gray
-        }
-    }
+struct RulesListView: View {
+    let rules: [String]
 
     var body: some View {
-        Text(color.uppercased())
-            .font(.caption2.bold())
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(swiftUIColor.opacity(0.3))
-            .foregroundStyle(color.lowercased() == "white" ? .primary : swiftUIColor)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(swiftUIColor, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-}
-
-// MARK: - Keypad Instructions
-
-struct KeypadInstructionsView: View {
-    let manual: KeypadManual
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("CODE LENGTH: \(manual.codeLength) digits")
-                .font(.subheadline.bold())
-
-            if !manual.hints.isEmpty {
-                Divider()
-
-                Text("HINTS:")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-
-                ForEach(manual.hints, id: \.self) { hint in
-                    HStack(alignment: .top) {
-                        Text("•")
-                        Text(hint)
-                            .font(.subheadline)
-                    }
-                }
-            }
-
-            Divider()
-
-            Text("Use the rotary encoder to select each digit (0-9), then press to confirm.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-// MARK: - Simon Instructions
-
-struct SimonInstructionsView: View {
-    let manual: SimonManual
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("ROUNDS: \(manual.rounds)")
-                .font(.subheadline.bold())
-
-            Divider()
-
-            Text("COLOR MAPPING:")
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                ForEach(Array(manual.colorMapping.keys.sorted()), id: \.self) { key in
-                    if let value = manual.colorMapping[key] {
-                        HStack {
-                            WireColorBadge(color: key)
-                            Image(systemName: "arrow.right")
-                                .font(.caption)
-                            WireColorBadge(color: value)
-                        }
-                    }
-                }
-            }
-
-            if !manual.rules.isEmpty {
-                Divider()
-
-                Text("RULES:")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-
-                ForEach(manual.rules, id: \.self) { rule in
-                    HStack(alignment: .top) {
-                        Text("•")
-                        Text(rule)
-                            .font(.subheadline)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Magnet Instructions
-
-struct MagnetInstructionsView: View {
-    let manual: MagnetManual
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("REQUIRED APPLICATIONS: \(manual.required)")
-                .font(.subheadline.bold())
-
-            Divider()
-
-            Text("SAFE ZONES (seconds):")
-                .font(.caption.bold())
-                .foregroundStyle(.secondary)
-
-            ForEach(Array(manual.safeZones.enumerated()), id: \.offset) { _, zone in
-                if zone.count >= 2 {
-                    HStack {
-                        Image(systemName: "clock")
-                        Text("\(zone[0])s - \(zone[1])s")
-                            .font(.subheadline.monospaced())
-                    }
-                }
-            }
-
-            if !manual.hints.isEmpty {
-                Divider()
-
-                ForEach(manual.hints, id: \.self) { hint in
-                    HStack(alignment: .top) {
-                        Text("•")
-                        Text(hint)
-                            .font(.subheadline)
-                    }
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(rules, id: \.self) { rule in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                        .foregroundStyle(.secondary)
+                    Text(rule)
+                        .font(.subheadline)
                 }
             }
         }

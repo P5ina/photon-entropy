@@ -115,12 +115,16 @@ class GameService: ObservableObject {
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errorMessage = errorJson["error"] as? String {
+                throw APIError.message("Manual failed: \(errorMessage)")
+            }
             throw APIError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
         }
 
-        let manual = try decoder.decode(GameManual.self, from: data)
-        self.manual = manual
-        return manual
+        let manualResponse = try decoder.decode(ManualResponse.self, from: data)
+        self.manual = manualResponse.manual
+        return manualResponse.manual
     }
 
     func startGame(gameId: String) async throws {

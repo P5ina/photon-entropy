@@ -214,13 +214,13 @@ class GameClient(WebSocketClient):
     def _on_game_started(self, data: dict):
         """Handle game started event."""
         self.game_state = data
-        print(f"[Game] Started!")
+        print(f"[Game] Started! Data keys: {data.keys() if data else 'None'}")
         if self.on_game_started:
             self.on_game_started(data)
 
     def _on_timer_tick(self, data: dict):
         """Handle timer tick."""
-        remaining = data.get("remaining", 0)
+        remaining = data.get("time_left", data.get("remaining", 0))
         if self.on_timer_tick:
             self.on_timer_tick(remaining)
 

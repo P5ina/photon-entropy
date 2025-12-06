@@ -4,6 +4,7 @@ import json
 from typing import Callable, Optional, Any
 import websockets
 from websockets.exceptions import ConnectionClosed
+import requests
 
 
 class WebSocketClient:
@@ -169,7 +170,16 @@ class GameClient(WebSocketClient):
         super().__init__(server_url)
         self.device_id = device_id
         self.game_id: Optional[str] = None
+        self.game_code: Optional[str] = None
         self.game_state: Optional[dict] = None
+
+        # Derive HTTP base URL from WebSocket URL
+        self.http_base_url = (
+            server_url
+            .replace("wss://", "https://")
+            .replace("ws://", "http://")
+            .replace("/ws", "")
+        )
 
         # Game event callbacks
         self.on_game_created: Optional[Callable[[dict], None]] = None
@@ -245,12 +255,43 @@ class GameClient(WebSocketClient):
         """Handle game state update."""
         self.game_state = data
 
-    async def create_game(self):
-        """Create a new game as defuser."""
-        await self.send("create_game", {
-            "device_id": self.device_id,
-            "role": "defuser"
-        })
+    def create_game(self, time_limit: int = 300, max_strikes: int = 3) -> Optional[dict]:
+        """Create a new game via REST API."""
+        try:
+            url = f"{self.http_base_url}/api/v1/game/create"
+            response = requests.post(url, json={
+                "time_limit": time_limit,
+                "max_strikes": max_strikes
+            }, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            self.game_id = data.get("game_id")
+            self.game_code = data.get("code")
+            print(f"[Game] Created game: {self.game_code}")
+            if self.on_game_created:
+                self.on_game_created(data)
+            return data
+        except Exception as e:
+            print(f"[Game] Failed to create game: {e}")
+            return None
+
+    def join_game_http(self, code: str) -> Optional[dict]:
+        """Join a game via REST API as bomb/defuser."""
+        try:
+            url = f"{self.http_base_url}/api/v1/game/join"
+            response = requests.post(url, json={
+                "code": code,
+                "role": "bomb"
+            }, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            self.game_id = data.get("game_id")
+            self.game_code = code
+            print(f"[Game] Joined game: {self.game_code}")
+            return data
+        except Exception as e:
+            print(f"[Game] Failed to join game: {e}")
+            return None
 
     async def join_game(self, game_id: str):
         """Join a game as defuser."""

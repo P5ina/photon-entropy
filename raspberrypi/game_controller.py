@@ -118,8 +118,9 @@ class GameController:
     def _on_game_created(self, data: dict):
         """Handle game created - display code on LCD."""
         self.game_id = data.get("game_id", "")
-        print(f"[Controller] Game created: {self.game_id}")
-        self.lcd.write("GAME CODE:", self.game_id.upper())
+        game_code = data.get("code", "")
+        print(f"[Controller] Game created: {game_code}")
+        self.lcd.write("GAME CODE:", game_code.upper())
 
     def _on_disconnected(self):
         """Handle disconnection."""
@@ -241,11 +242,23 @@ class GameController:
         if self.on_game_lost:
             self.on_game_lost(reason)
 
-    async def create_game(self):
+    def create_game(self):
         """Create a new game and display code on LCD."""
         if self.client:
             self.lcd.write("Creating game...", "")
-            await self.client.create_game()
+            result = self.client.create_game()
+            if not result:
+                self.lcd.write("Failed to", "create game")
+
+    def join_game_by_code(self, code: str):
+        """Join a game by code via REST API."""
+        if self.client:
+            self.lcd.write("Joining...", code[:16])
+            result = self.client.join_game_http(code)
+            if result:
+                self.game_id = result.get("game_id")
+            else:
+                self.lcd.write("Failed to", "join game")
 
     async def join_game(self, game_id: str):
         """Join a game."""

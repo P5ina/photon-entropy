@@ -61,10 +61,11 @@ async def main():
 
         # Create or join game
         if args.game_id:
-            await controller.join_game(args.game_id)
+            # Join by code via REST API
+            controller.join_game_by_code(args.game_id)
         else:
             # Create a new game and display code on LCD
-            await controller.create_game()
+            controller.create_game()
 
         # Run game loop
         print("[Main] Starting game loop...")

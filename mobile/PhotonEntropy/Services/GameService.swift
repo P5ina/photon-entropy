@@ -127,10 +127,15 @@ class GameService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
 
-        let (_, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
+            // Try to get error message from response
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errorMessage = errorJson["error"] as? String {
+                throw APIError.message(errorMessage)
+            }
             throw APIError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
         }
     }

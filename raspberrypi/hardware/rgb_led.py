@@ -1,10 +1,10 @@
-"""RGB LED driver."""
+"""RGB LED driver using gpiozero (Pi 5 compatible)."""
 import time
 import threading
 from typing import Optional, Tuple
 
 try:
-    import RPi.GPIO as GPIO
+    from gpiozero import PWMLED
     HAS_GPIO = True
 except ImportError:
     HAS_GPIO = False
@@ -31,9 +31,9 @@ class RGBLED:
         self.green_pin = green_pin
         self.blue_pin = blue_pin
         self.mock = mock or not HAS_GPIO
-        self._pwm_r: Optional[GPIO.PWM] = None
-        self._pwm_g: Optional[GPIO.PWM] = None
-        self._pwm_b: Optional[GPIO.PWM] = None
+        self._led_r: Optional[PWMLED] = None
+        self._led_g: Optional[PWMLED] = None
+        self._led_b: Optional[PWMLED] = None
         self._current_color = "off"
         self._blinking = False
         self._blink_thread: Optional[threading.Thread] = None
@@ -45,19 +45,10 @@ class RGBLED:
             print(f"[RGB LED] Mock mode - R:{self.red_pin} G:{self.green_pin} B:{self.blue_pin}")
             return
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.red_pin, GPIO.OUT)
-        GPIO.setup(self.green_pin, GPIO.OUT)
-        GPIO.setup(self.blue_pin, GPIO.OUT)
-
-        # Setup PWM at 1000Hz
-        self._pwm_r = GPIO.PWM(self.red_pin, 1000)
-        self._pwm_g = GPIO.PWM(self.green_pin, 1000)
-        self._pwm_b = GPIO.PWM(self.blue_pin, 1000)
-
-        self._pwm_r.start(0)
-        self._pwm_g.start(0)
-        self._pwm_b.start(0)
+        # Setup PWM LEDs (gpiozero uses 0-1 range for brightness)
+        self._led_r = PWMLED(self.red_pin)
+        self._led_g = PWMLED(self.green_pin)
+        self._led_b = PWMLED(self.blue_pin)
 
     def set_rgb(self, r: int, g: int, b: int):
         """Set RGB values (0-255 each)."""
@@ -65,10 +56,13 @@ class RGBLED:
             print(f"[RGB LED] RGB({r}, {g}, {b})")
             return
 
-        # Convert 0-255 to 0-100 duty cycle
-        self._pwm_r.ChangeDutyCycle(r * 100 / 255)
-        self._pwm_g.ChangeDutyCycle(g * 100 / 255)
-        self._pwm_b.ChangeDutyCycle(b * 100 / 255)
+        # Convert 0-255 to 0-1 for gpiozero
+        if self._led_r:
+            self._led_r.value = r / 255
+        if self._led_g:
+            self._led_g.value = g / 255
+        if self._led_b:
+            self._led_b.value = b / 255
 
     def set_color(self, color: str):
         """Set color by name."""
@@ -149,10 +143,15 @@ class RGBLED:
     def cleanup(self):
         """Clean up resources."""
         self.stop_blinking()
-        self.off()
-        if self._pwm_r:
-            self._pwm_r.stop()
-        if self._pwm_g:
-            self._pwm_g.stop()
-        if self._pwm_b:
-            self._pwm_b.stop()
+        if self._led_r:
+            self._led_r.off()
+            self._led_r.close()
+            self._led_r = None
+        if self._led_g:
+            self._led_g.off()
+            self._led_g.close()
+            self._led_g = None
+        if self._led_b:
+            self._led_b.off()
+            self._led_b.close()
+            self._led_b = None

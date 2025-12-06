@@ -1,9 +1,9 @@
-"""Sensor drivers for touch, Hall, and tilt sensors."""
+"""Sensor drivers for touch, Hall, and tilt sensors using gpiozero (Pi 5 compatible)."""
 import time
 from typing import Callable, Optional
 
 try:
-    import RPi.GPIO as GPIO
+    from gpiozero import Button as GPIOButton, DigitalInputDevice, LED as GPIOLED
     HAS_GPIO = True
 except ImportError:
     HAS_GPIO = False
@@ -19,6 +19,7 @@ class TouchSensor:
         self._tap_count = 0
         self._last_tap_time = 0
         self.on_touch: Optional[Callable[[], None]] = None
+        self._sensor: Optional[GPIOButton] = None
 
     def setup(self):
         """Initialize touch sensor GPIO."""
@@ -26,17 +27,11 @@ class TouchSensor:
             print(f"[Touch] Mock mode - pin {self.pin}")
             return
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        # Touch sensor outputs HIGH when touched
+        self._sensor = GPIOButton(self.pin, pull_up=False, bounce_time=0.1)
+        self._sensor.when_pressed = self._handle_touch
 
-        GPIO.add_event_detect(
-            self.pin,
-            GPIO.RISING,
-            callback=self._handle_touch,
-            bouncetime=100
-        )
-
-    def _handle_touch(self, channel):
+    def _handle_touch(self):
         """Handle touch event."""
         current_time = time.time()
 
@@ -55,7 +50,9 @@ class TouchSensor:
         """Check if sensor is currently touched."""
         if self.mock:
             return False
-        return GPIO.input(self.pin) == GPIO.HIGH
+        if self._sensor:
+            return self._sensor.is_pressed
+        return False
 
     def was_touched(self) -> bool:
         """Check if sensor was touched (clears flag)."""
@@ -90,11 +87,9 @@ class TouchSensor:
 
     def cleanup(self):
         """Clean up GPIO."""
-        if not self.mock:
-            try:
-                GPIO.remove_event_detect(self.pin)
-            except:
-                pass
+        if self._sensor:
+            self._sensor.close()
+            self._sensor = None
 
 
 class HallSensor:
@@ -105,6 +100,7 @@ class HallSensor:
         self.mock = mock or not HAS_GPIO
         self._magnet_detected = False
         self.on_magnet: Optional[Callable[[bool], None]] = None
+        self._sensor: Optional[DigitalInputDevice] = None
 
     def setup(self):
         """Initialize Hall sensor GPIO."""
@@ -112,19 +108,15 @@ class HallSensor:
             print(f"[Hall] Mock mode - pin {self.pin}")
             return
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # Hall sensor outputs LOW when magnet is present (active low)
+        self._sensor = DigitalInputDevice(self.pin, pull_up=True, bounce_time=0.05)
+        self._sensor.when_activated = lambda: self._handle_change(True)
+        self._sensor.when_deactivated = lambda: self._handle_change(False)
 
-        GPIO.add_event_detect(
-            self.pin,
-            GPIO.BOTH,
-            callback=self._handle_change,
-            bouncetime=50
-        )
-
-    def _handle_change(self, channel):
+    def _handle_change(self, detected: bool):
         """Handle magnet state change."""
-        detected = GPIO.input(self.pin) == GPIO.LOW
+        # Invert because sensor is active low
+        detected = not detected
         if detected != self._magnet_detected:
             self._magnet_detected = detected
             if self.on_magnet:
@@ -134,7 +126,10 @@ class HallSensor:
         """Check if magnet is currently detected."""
         if self.mock:
             return self._magnet_detected
-        return GPIO.input(self.pin) == GPIO.LOW
+        if self._sensor:
+            # Invert because sensor is active low
+            return not self._sensor.value
+        return False
 
     def was_magnet_applied(self) -> bool:
         """Check if magnet was applied (clears flag)."""
@@ -154,11 +149,9 @@ class HallSensor:
 
     def cleanup(self):
         """Clean up GPIO."""
-        if not self.mock:
-            try:
-                GPIO.remove_event_detect(self.pin)
-            except:
-                pass
+        if self._sensor:
+            self._sensor.close()
+            self._sensor = None
 
 
 class LED:
@@ -168,6 +161,7 @@ class LED:
         self.pin = pin
         self.mock = mock or not HAS_GPIO
         self._state = False
+        self._led: Optional[GPIOLED] = None
 
     def setup(self):
         """Initialize LED GPIO."""
@@ -175,9 +169,7 @@ class LED:
             print(f"[LED] Mock mode - pin {self.pin}")
             return
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.OUT)
-        GPIO.output(self.pin, GPIO.LOW)
+        self._led = GPIOLED(self.pin)
 
     def on(self):
         """Turn LED on."""
@@ -185,7 +177,8 @@ class LED:
         if self.mock:
             print(f"[LED {self.pin}] ON")
             return
-        GPIO.output(self.pin, GPIO.HIGH)
+        if self._led:
+            self._led.on()
 
     def off(self):
         """Turn LED off."""
@@ -193,7 +186,8 @@ class LED:
         if self.mock:
             print(f"[LED {self.pin}] OFF")
             return
-        GPIO.output(self.pin, GPIO.LOW)
+        if self._led:
+            self._led.off()
 
     def toggle(self):
         """Toggle LED state."""
@@ -216,7 +210,10 @@ class LED:
 
     def cleanup(self):
         """Clean up GPIO."""
-        self.off()
+        if self._led:
+            self._led.off()
+            self._led.close()
+            self._led = None
 
 
 class LEDGroup:

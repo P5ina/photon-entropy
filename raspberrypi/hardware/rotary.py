@@ -1,10 +1,10 @@
-"""Rotary encoder driver."""
+"""Rotary encoder driver using gpiozero (Pi 5 compatible)."""
 import time
 import threading
 from typing import Callable, Optional
 
 try:
-    import RPi.GPIO as GPIO
+    from gpiozero import RotaryEncoder as GPIORotaryEncoder, Button as GPIOButton
     HAS_GPIO = True
 except ImportError:
     HAS_GPIO = False
@@ -23,7 +23,6 @@ class RotaryEncoder:
         self.mock = mock or not HAS_GPIO
 
         self._value = min_val
-        self._last_clk = 0
         self._button_pressed = False
 
         # Callbacks
@@ -31,6 +30,8 @@ class RotaryEncoder:
         self.on_button: Optional[Callable[[], None]] = None
 
         self._lock = threading.Lock()
+        self._encoder: Optional[GPIORotaryEncoder] = None
+        self._button: Optional[GPIOButton] = None
 
     def setup(self):
         """Initialize the rotary encoder GPIO."""
@@ -38,51 +39,34 @@ class RotaryEncoder:
             print(f"[Rotary] Mock mode - CLK:{self.clk_pin} DT:{self.dt_pin} SW:{self.sw_pin}")
             return
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.clk_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.dt_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.sw_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # Setup rotary encoder
+        self._encoder = GPIORotaryEncoder(self.clk_pin, self.dt_pin, max_steps=0)
+        self._encoder.when_rotated = self._handle_rotation
 
-        self._last_clk = GPIO.input(self.clk_pin)
+        # Setup button
+        self._button = GPIOButton(self.sw_pin, pull_up=True, bounce_time=0.2)
+        self._button.when_pressed = self._handle_button
 
-        # Add event detection for rotation
-        GPIO.add_event_detect(
-            self.clk_pin,
-            GPIO.BOTH,
-            callback=self._handle_rotation,
-            bouncetime=5
-        )
-
-        # Add event detection for button
-        GPIO.add_event_detect(
-            self.sw_pin,
-            GPIO.FALLING,
-            callback=self._handle_button,
-            bouncetime=200
-        )
-
-    def _handle_rotation(self, channel):
+    def _handle_rotation(self):
         """Handle rotary encoder rotation."""
         with self._lock:
-            clk_state = GPIO.input(self.clk_pin)
-            dt_state = GPIO.input(self.dt_pin)
+            # Get the step count from the encoder
+            steps = self._encoder.steps
+            self._encoder.steps = 0  # Reset steps
 
-            if clk_state != self._last_clk:
-                if dt_state != clk_state:
-                    # Clockwise
-                    if self._value < self.max_val:
-                        self._value += 1
-                else:
-                    # Counter-clockwise
-                    if self._value > self.min_val:
-                        self._value -= 1
+            if steps > 0:
+                # Clockwise
+                if self._value < self.max_val:
+                    self._value += 1
+            elif steps < 0:
+                # Counter-clockwise
+                if self._value > self.min_val:
+                    self._value -= 1
 
-                if self.on_change:
-                    self.on_change(self._value)
+            if self.on_change:
+                self.on_change(self._value)
 
-            self._last_clk = clk_state
-
-    def _handle_button(self, channel):
+    def _handle_button(self):
         """Handle button press."""
         self._button_pressed = True
         if self.on_button:
@@ -113,7 +97,9 @@ class RotaryEncoder:
         """Check if button is currently pressed."""
         if self.mock:
             return False
-        return GPIO.input(self.sw_pin) == GPIO.LOW
+        if self._button:
+            return self._button.is_pressed
+        return False
 
     def simulate_rotate(self, direction: int):
         """Simulate rotation (for testing). direction: 1=CW, -1=CCW."""
@@ -138,10 +124,10 @@ class RotaryEncoder:
             print(f"[Rotary] Button pressed, value: {self._value}")
 
     def cleanup(self):
-        """Clean up GPIO event detection."""
-        if not self.mock:
-            try:
-                GPIO.remove_event_detect(self.clk_pin)
-                GPIO.remove_event_detect(self.sw_pin)
-            except:
-                pass
+        """Clean up GPIO."""
+        if self._encoder:
+            self._encoder.close()
+            self._encoder = None
+        if self._button:
+            self._button.close()
+            self._button = None

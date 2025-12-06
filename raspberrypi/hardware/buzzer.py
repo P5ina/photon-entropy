@@ -1,10 +1,10 @@
-"""Buzzer driver for sound effects."""
+"""Buzzer driver for sound effects using gpiozero (Pi 5 compatible)."""
 import time
 import threading
 from typing import Optional
 
 try:
-    import RPi.GPIO as GPIO
+    from gpiozero import TonalBuzzer, DigitalOutputDevice
     HAS_GPIO = True
 except ImportError:
     HAS_GPIO = False
@@ -19,6 +19,7 @@ class Buzzer:
         self._ticking = False
         self._tick_thread: Optional[threading.Thread] = None
         self._stop_tick = threading.Event()
+        self._buzzer: Optional[DigitalOutputDevice] = None
 
     def setup(self):
         """Initialize the buzzer GPIO."""
@@ -26,9 +27,8 @@ class Buzzer:
             print(f"[Buzzer] Mock mode - pin {self.pin}")
             return
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.OUT)
-        GPIO.output(self.pin, GPIO.LOW)
+        # Use DigitalOutputDevice for active buzzer (just on/off)
+        self._buzzer = DigitalOutputDevice(self.pin)
 
     def beep(self, duration: float = 0.1):
         """Single beep."""
@@ -36,9 +36,10 @@ class Buzzer:
             print(f"[Buzzer] BEEP ({duration}s)")
             return
 
-        GPIO.output(self.pin, GPIO.HIGH)
-        time.sleep(duration)
-        GPIO.output(self.pin, GPIO.LOW)
+        if self._buzzer:
+            self._buzzer.on()
+            time.sleep(duration)
+            self._buzzer.off()
 
     def tick(self):
         """Single short tick sound."""
@@ -135,16 +136,21 @@ class Buzzer:
         if self.mock:
             print("[Buzzer] ON")
             return
-        GPIO.output(self.pin, GPIO.HIGH)
+        if self._buzzer:
+            self._buzzer.on()
 
     def off(self):
         """Turn buzzer off."""
         if self.mock:
             print("[Buzzer] OFF")
             return
-        GPIO.output(self.pin, GPIO.LOW)
+        if self._buzzer:
+            self._buzzer.off()
 
     def cleanup(self):
         """Clean up resources."""
         self.stop_ticking()
-        self.off()
+        if self._buzzer:
+            self._buzzer.off()
+            self._buzzer.close()
+            self._buzzer = None

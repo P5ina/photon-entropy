@@ -51,6 +51,10 @@ class GameController:
         self.lcd = LCD(config.lcd_address, mock=self.mock)
         self.buzzer = Buzzer(config.buzzer_pin, mock=self.mock)
 
+        # Shared RGB LED for Simon and Magnet modules
+        from hardware.rgb_led import RGBLED
+        self.rgb_led = RGBLED(config.rgb_red, config.rgb_green, config.rgb_blue, mock=self.mock)
+
         # Modules
         self.wires = WiresModule(
             config.wire_buttons,
@@ -58,12 +62,12 @@ class GameController:
             mock=self.mock
         )
         self.simon = SimonModule(
-            (config.rgb_red, config.rgb_green, config.rgb_blue),
+            rgb=self.rgb_led,
             mock=self.mock
         )
         self.magnet = MagnetModule(
             config.hall_pin,
-            rgb_pins=(config.rgb_red, config.rgb_green, config.rgb_blue),
+            rgb=self.rgb_led,
             buzzer=self.buzzer,
             mock=self.mock
         )
@@ -90,6 +94,7 @@ class GameController:
 
         self.lcd.setup()
         self.buzzer.setup()
+        self.rgb_led.setup()
 
         for name, module in self.modules.items():
             print(f"[Controller] Setting up {name}...")
@@ -430,6 +435,7 @@ class GameController:
         for module in self.modules.values():
             module.cleanup()
 
+        self.rgb_led.cleanup()
         self.buzzer.cleanup()
         self.lcd.cleanup()
 

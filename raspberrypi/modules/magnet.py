@@ -13,16 +13,13 @@ class MagnetModule(BaseModule):
     - Server validates if conditions were correct
     """
 
-    def __init__(self, hall_pin: int, rgb_pins: tuple = None, buzzer: Buzzer = None, mock: bool = False):
+    def __init__(self, hall_pin: int, rgb: RGBLED = None, buzzer: Buzzer = None, mock: bool = False):
         super().__init__("magnet", mock)
         self.hall = HallSensor(hall_pin, mock=mock)
         self._magnet_applied = False
 
         # RGB LED for showing state (shared with Simon)
-        if rgb_pins:
-            self.rgb = RGBLED(rgb_pins[0], rgb_pins[1], rgb_pins[2], mock=mock)
-        else:
-            self.rgb = None
+        self.rgb = rgb  # Shared RGB LED instance
 
         # Buzzer reference (shared with game controller)
         self.buzzer = buzzer
@@ -32,11 +29,10 @@ class MagnetModule(BaseModule):
         self._buzzer_active = False
 
     def setup(self):
-        """Initialize hardware."""
+        """Initialize hardware (RGB is set up by controller)."""
         self.hall.setup()
         self.hall.on_magnet = self._on_magnet_change
-        if self.rgb:
-            self.rgb.setup()
+        # RGB LED is shared and set up by game controller
 
     def configure(self, config: dict):
         """Configure with game rules."""
@@ -128,4 +124,4 @@ class MagnetModule(BaseModule):
         self.hall.cleanup()
         if self.rgb:
             self.rgb.off()
-            self.rgb.cleanup()
+        # Don't cleanup RGB - it's shared and cleaned up by controller

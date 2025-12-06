@@ -16,9 +16,9 @@ class SimonModule(BaseModule):
     - Server validates colors and tracks progress
     """
 
-    def __init__(self, rgb_pins: tuple, mock: bool = False):
+    def __init__(self, rgb: RGBLED, mock: bool = False):
         super().__init__("simon", mock)
-        self.rgb = RGBLED(rgb_pins[0], rgb_pins[1], rgb_pins[2], mock=mock)
+        self.rgb = rgb  # Shared RGB LED instance
 
         self._sequence: list[str] = []
         self._current_index = 0
@@ -26,8 +26,8 @@ class SimonModule(BaseModule):
         self._stop_sequence = threading.Event()
 
     def setup(self):
-        """Initialize hardware."""
-        self.rgb.setup()
+        """Initialize hardware (RGB is set up by controller)."""
+        pass  # RGB LED is shared and set up by game controller
 
     def configure(self, config: dict):
         """Configure with game rules."""
@@ -115,4 +115,5 @@ class SimonModule(BaseModule):
     def cleanup(self):
         """Clean up hardware."""
         self._stop_sequence.set()
-        self.rgb.cleanup()
+        self.rgb.off()
+        # Don't cleanup RGB - it's shared and cleaned up by controller

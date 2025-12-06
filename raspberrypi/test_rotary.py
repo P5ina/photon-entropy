@@ -96,9 +96,9 @@ def test_raw_gpio(config: Config):
     print(f"\nPins: CLK=GPIO {clk_pin}, DT=GPIO {dt_pin}, SW=GPIO {sw_pin}")
     print("Reading raw pin states. Rotate encoder / press button. Ctrl+C to exit.\n")
 
-    clk = InputDevice(clk_pin, pull_up=True)
-    dt = InputDevice(dt_pin, pull_up=True)
-    sw = InputDevice(sw_pin, pull_up=True)
+    clk = InputDevice(clk_pin, pull_up=None)
+    dt = InputDevice(dt_pin, pull_up=None)
+    sw = InputDevice(sw_pin, pull_up=None)
 
     last_clk = clk.value
     last_dt = dt.value

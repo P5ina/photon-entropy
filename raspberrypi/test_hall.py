@@ -41,6 +41,37 @@ def test_hall(config: Config, mock: bool = False, raw: bool = False):
     print("\nKY-003 Hall sensor: outputs LOW when magnet detected (active LOW)")
     print("Bring a magnet close to the sensor. Press Ctrl+C to exit.\n")
 
+    # Test with different pull configurations
+    print("-" * 50)
+    print("Testing pin with different configurations...")
+    print("-" * 50)
+
+    # Test 1: With pull-up
+    hall_pullup = DigitalInputDevice(hall_pin, pull_up=True)
+    val_pullup = hall_pullup.value
+    hall_pullup.close()
+    print(f"  With pull_up=True:  {val_pullup} ({'HIGH' if val_pullup else 'LOW'})")
+
+    # Test 2: With pull-down
+    hall_pulldown = DigitalInputDevice(hall_pin, pull_up=False)
+    val_pulldown = hall_pulldown.value
+    hall_pulldown.close()
+    print(f"  With pull_up=False: {val_pulldown} ({'HIGH' if val_pulldown else 'LOW'})")
+
+    # Diagnosis
+    if val_pullup == 0 and val_pulldown == 0:
+        print("\n  ⚠ Pin reads LOW with both pull-up and pull-down!")
+        print("    → Signal wire is likely shorted to GND or sensor output is stuck LOW")
+        print("    → Check wiring: disconnect signal wire and test again")
+    elif val_pullup == 1 and val_pulldown == 1:
+        print("\n  ⚠ Pin reads HIGH with both pull-up and pull-down!")
+        print("    → Signal wire might be shorted to VCC")
+    elif val_pullup == 1 and val_pulldown == 0:
+        print("\n  ✓ Pin responds to pull resistors correctly (floating)")
+        print("    → Sensor may not be connected or powered")
+
+    print("-" * 50)
+
     # Use DigitalInputDevice for clearer control
     # pull_up=True provides internal pull-up resistor
     # The sensor pulls LOW when magnet is detected
@@ -61,11 +92,9 @@ def test_hall(config: Config, mock: bool = False, raw: bool = False):
     hall.when_activated = on_activated
     hall.when_deactivated = on_deactivated
 
-    print("-" * 50)
-
     # Show initial state
     initial_value = hall.value
-    print(f"Initial pin value: {initial_value} ({'HIGH - no magnet' if initial_value else 'LOW - magnet present!'})")
+    print(f"Continuing with pull_up=True. Current value: {initial_value}")
 
     if raw:
         print("\nRAW MODE: Showing continuous pin values...")

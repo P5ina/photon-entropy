@@ -93,16 +93,31 @@ class LCD:
             self._lcd.cursor_pos = (line, 0)
             self._lcd.write_string(text)
 
-    def show_timer(self, seconds: int):
-        """Display timer in MM:SS format."""
+    def show_timer(self, seconds: int, strikes: int = 0):
+        """Display timer in MM:SS format with strikes."""
         minutes = seconds // 60
         secs = seconds % 60
-        self.write_line(0, f"TIME: {minutes:02d}:{secs:02d}")
+        strike_str = "X" * strikes if strikes > 0 else ""
+        # Format: "05:30    XXX" (timer left, strikes right)
+        timer_str = f"{minutes:02d}:{secs:02d}"
+        line = f"{timer_str}{'':>{self.cols - len(timer_str) - len(strike_str)}}{strike_str}"
+        self.write_line(0, line)
 
     def show_strikes(self, strikes: int, max_strikes: int):
         """Display strike counter."""
         strike_display = "X" * strikes + "O" * (max_strikes - strikes)
         self.write_line(1, f"STRIKES: {strike_display}")
+
+    def show_module(self, module_name: str):
+        """Display current active module name."""
+        # Module names: wires, simon, magnet
+        display_names = {
+            "wires": ">> WIRES",
+            "simon": ">> SIMON",
+            "magnet": ">> MAGNET",
+        }
+        display = display_names.get(module_name, f">> {module_name.upper()}")
+        self.write_line(1, display)
 
     def show_game_state(self, time_left: int, strikes: int, max_strikes: int):
         """Display full game state."""

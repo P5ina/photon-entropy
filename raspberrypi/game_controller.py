@@ -169,18 +169,25 @@ class GameController:
                     print(f"[Controller] Activating {module_type}")
                     self.modules[module_type].activate()
 
-        self.lcd.show_timer(self.time_remaining)
-        self.buzzer.tick()
+        self.lcd.show_timer(self.time_remaining, self.strikes)
 
         # Show which module is active
-        if self.module_order:
-            active_type = self.module_order[self.active_module_index] if self.active_module_index < len(self.module_order) else "?"
+        if self.module_order and self.active_module_index < len(self.module_order):
+            active_type = self.module_order[self.active_module_index]
+            self.lcd.show_module(active_type)
             print(f"[Controller] Game started! Time: {self.time_remaining}s, Active module: {active_type}")
+
+        self.buzzer.tick()
 
     def _on_timer_tick(self, remaining: int):
         """Handle timer tick from server."""
         self.time_remaining = remaining
-        self.lcd.show_timer(remaining)
+        self.lcd.show_timer(remaining, self.strikes)
+
+        # Show current active module
+        if self.module_order and self.active_module_index < len(self.module_order):
+            active_module = self.module_order[self.active_module_index]
+            self.lcd.show_module(active_module)
 
         # Tick sound every second, faster when low
         if remaining <= 10:

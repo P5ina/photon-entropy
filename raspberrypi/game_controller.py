@@ -39,6 +39,9 @@ class GameController:
         self.strikes = 0
         self.max_strikes = 3
 
+        # Module ID mapping: type -> server module ID
+        self.module_ids: dict[str, str] = {}
+
         # Event loop reference for thread-safe async calls
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -146,11 +149,15 @@ class GameController:
         # Server sends modules as array: [{"id": "...", "type": "wires", "config": {...}}, ...]
         modules_list = game_data.get("modules", [])
         print(f"[Controller] Received {len(modules_list)} modules")
+        self.module_ids = {}  # Reset module ID mapping
         for module_data in modules_list:
+            module_id = module_data.get("id")
             module_type = module_data.get("type")
             module_config = module_data.get("config", {})
             if module_type in self.modules:
-                print(f"[Controller] Configuring {module_type}: {module_config}")
+                # Store module ID mapping
+                self.module_ids[module_type] = module_id
+                print(f"[Controller] Configuring {module_type} (id={module_id}): {module_config}")
                 self.modules[module_type].configure(module_config)
 
         # Activate all modules
@@ -206,9 +213,11 @@ class GameController:
     def _on_module_action(self, module_name: str, action: str, data):
         """Handle module action."""
         if self.client and self.game_id and self._loop:
+            # Get the server module ID for this module type
+            module_id = self.module_ids.get(module_name, module_name)
             # Use thread-safe method to schedule coroutine from another thread
             asyncio.run_coroutine_threadsafe(
-                self.client.report_module_action(module_name, action, data or {}),
+                self.client.report_module_action(module_id, action, data or {}),
                 self._loop
             )
 

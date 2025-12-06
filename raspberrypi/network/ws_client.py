@@ -331,26 +331,49 @@ class GameClient(WebSocketClient):
             "role": "defuser"
         })
 
+    def send_action(self, module_id: str, action: str, value: any = None) -> Optional[dict]:
+        """Send a module action via REST API and return result."""
+        if not self.game_id:
+            print("[Game] No game_id, cannot send action")
+            return None
+
+        try:
+            url = f"{self.http_base_url}/api/v1/game/action"
+            response = requests.post(url, json={
+                "game_id": self.game_id,
+                "module_id": module_id,
+                "action": action,
+                "value": value
+            }, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            print(f"[Game] Action result: {data.get('result', {})}")
+            return data
+        except Exception as e:
+            print(f"[Game] Failed to send action: {e}")
+            return None
+
     async def report_module_action(self, module: str, action: str, data: dict = None):
-        """Report a module action to the server."""
-        await self.send("module_action", {
-            "game_id": self.game_id,
-            "module": module,
-            "action": action,
-            **(data or {})
-        })
+        """Report a module action to the server via REST API."""
+        # Extract wire index from data for wires module
+        value = data.get("wire") if data else None
+        result = self.send_action(module, action, value)
+
+        if result:
+            action_result = result.get("result", {})
+            if action_result.get("strike"):
+                # Server says it's a strike
+                if self.on_strike:
+                    self.on_strike(result.get("strikes", 0))
+            if action_result.get("solved"):
+                # Module solved
+                if self.on_module_solved:
+                    self.on_module_solved(module)
 
     async def report_module_solved(self, module: str):
-        """Report module solved."""
-        await self.send("module_solved", {
-            "game_id": self.game_id,
-            "module": module
-        })
+        """Report module solved - now handled by action response."""
+        pass  # Solved is determined by server response to action
 
     async def report_strike(self, module: str, reason: str):
-        """Report a strike."""
-        await self.send("strike", {
-            "game_id": self.game_id,
-            "module": module,
-            "reason": reason
-        })
+        """Report a strike - now handled by action response."""
+        pass  # Strikes are determined by server response to action

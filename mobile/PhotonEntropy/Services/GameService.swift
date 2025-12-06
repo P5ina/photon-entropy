@@ -210,7 +210,7 @@ class GameService: ObservableObject {
     private func handleGameEvent(type: String, data: [String: Any]) {
         switch type {
         case "timer_tick":
-            if let remaining = data["remaining"] as? Int {
+            if let remaining = data["time_left"] as? Int {
                 currentGame = currentGame.map { game in
                     Game(
                         id: game.id,

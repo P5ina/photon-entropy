@@ -10,7 +10,7 @@ import argparse
 import time
 
 try:
-    from gpiozero import Button, TonalBuzzer
+    from gpiozero import Button, DigitalOutputDevice
     HAS_GPIO = True
     GPIO_LIB = "gpiozero"
 except ImportError:
@@ -42,14 +42,14 @@ def test_touch(config: Config, mock: bool = False):
     print("\nTouch the sensor. Press Ctrl+C to exit.\n")
 
     touch = Button(touch_pin, pull_up=False)
-    buzzer = TonalBuzzer(buzzer_pin)
+    buzzer = DigitalOutputDevice(buzzer_pin)
     touch_count = 0
 
     def beep():
         """Short beep on touch."""
-        buzzer.play(880)  # A5 note
+        buzzer.on()
         time.sleep(0.05)
-        buzzer.stop()
+        buzzer.off()
 
     def on_touch():
         nonlocal touch_count

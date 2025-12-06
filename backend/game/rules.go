@@ -64,15 +64,15 @@ func (r *RuleGenerator) generateModule(id string, modType ModuleType) Module {
 	}
 }
 
-// generateWiresModule creates a Wires module with random wire configuration
+// generateWiresModule creates a Wires module
+// Hardware has fixed LEDs: Red(1), Blue(2), Green(3), Yellow(4)
+// Rule determines which button(s) to press based on game seed
 func (r *RuleGenerator) generateWiresModule(id string) Module {
-	// Shuffle wire colors
-	wires := make([]WireColor, len(AllWireColors))
-	copy(wires, AllWireColors)
-	r.shuffleWireColors(wires)
+	// Fixed wire colors at positions 0-3: Red, Blue, Green, Yellow
+	wires := []WireColor{WireRed, WireBlue, WireGreen, WireYellow}
 
-	// Determine which wires need to be cut based on rules
-	correctCuts := r.determineWireCuts(wires)
+	// Determine which button to press based on rule set
+	correctButton := r.determineCorrectButton()
 
 	config := map[string]interface{}{
 		"wires":     wires,
@@ -80,7 +80,7 @@ func (r *RuleGenerator) generateWiresModule(id string) Module {
 	}
 
 	solution := map[string]interface{}{
-		"correct_cuts": correctCuts,
+		"correct_cuts": []int{correctButton},
 	}
 
 	return Module{
@@ -92,73 +92,11 @@ func (r *RuleGenerator) generateWiresModule(id string) Module {
 	}
 }
 
-func (r *RuleGenerator) shuffleWireColors(colors []WireColor) {
-	for i := len(colors) - 1; i > 0; i-- {
-		j := r.rng.Intn(i + 1)
-		colors[i], colors[j] = colors[j], colors[i]
-	}
-}
-
-// determineWireCuts applies rules to determine which wires to cut
-// With 4 unique colors (red, blue, green, yellow), rules are based on positions
-func (r *RuleGenerator) determineWireCuts(wires []WireColor) []int {
-	// Rule set (varies by seed via random selection)
-	ruleSet := r.rng.Intn(4)
-
-	// Helper to find position of a color
-	findColor := func(color WireColor) int {
-		for i, w := range wires {
-			if w == color {
-				return i
-			}
-		}
-		return -1
-	}
-
-	switch ruleSet {
-	case 0:
-		// If red is before blue, cut the red wire
-		// Otherwise, cut the third wire
-		redPos := findColor(WireRed)
-		bluePos := findColor(WireBlue)
-		if redPos < bluePos {
-			return []int{redPos}
-		}
-		return []int{2}
-
-	case 1:
-		// If yellow is last, cut the first wire
-		// Otherwise, cut the wire after blue
-		if wires[3] == WireYellow {
-			return []int{0}
-		}
-		bluePos := findColor(WireBlue)
-		if bluePos < 3 {
-			return []int{bluePos + 1}
-		}
-		return []int{0}
-
-	case 2:
-		// If green is in first or second position, cut green
-		// Otherwise, cut the last wire
-		greenPos := findColor(WireGreen)
-		if greenPos <= 1 {
-			return []int{greenPos}
-		}
-		return []int{3}
-
-	case 3:
-		// If blue is adjacent to yellow, cut blue
-		// Otherwise, cut the second wire
-		bluePos := findColor(WireBlue)
-		yellowPos := findColor(WireYellow)
-		if bluePos == yellowPos+1 || bluePos == yellowPos-1 {
-			return []int{bluePos}
-		}
-		return []int{1}
-	}
-
-	return []int{0}
+// determineCorrectButton picks which button to press based on rule set
+// Positions: 0=Red, 1=Blue, 2=Green, 3=Yellow
+func (r *RuleGenerator) determineCorrectButton() int {
+	// Randomly select which button is correct (0-3)
+	return r.rng.Intn(4)
 }
 
 // generateKeypadModule creates a Keypad module with a random code
@@ -254,45 +192,26 @@ func (r *RuleGenerator) generateMagnetModule(id string) Module {
 }
 
 // GetWiresManual returns the manual/instructions for the Wires module
+// Fixed layout: Button 1=Red, 2=Blue, 3=Green, 4=Yellow
+// The correct button is determined by game seed
 func (r *RuleGenerator) GetWiresManual() []string {
-	ruleSet := r.rng.Intn(4)
+	correctButton := r.rng.Intn(4)
+	colors := []string{"RED", "BLUE", "GREEN", "YELLOW"}
 
-	switch ruleSet {
-	case 0:
-		return []string{
-			"If red is before blue (reading left to right), cut the red wire.",
-			"Otherwise, cut the third wire.",
-		}
-	case 1:
-		return []string{
-			"If yellow is in the last position, cut the first wire.",
-			"Otherwise, cut the wire immediately after blue.",
-		}
-	case 2:
-		return []string{
-			"If green is in position 1 or 2, cut the green wire.",
-			"Otherwise, cut the last wire.",
-		}
-	case 3:
-		return []string{
-			"If blue is next to yellow, cut the blue wire.",
-			"Otherwise, cut the second wire.",
-		}
+	return []string{
+		fmt.Sprintf("Press the %s button.", colors[correctButton]),
 	}
-
-	return []string{"Cut the first wire."}
 }
 
 // GetKeypadManual returns the manual/instructions for the Keypad module
 func (r *RuleGenerator) GetKeypadManual() []string {
+	// Generate the same code that generateKeypadModule produces
+	code := fmt.Sprintf("%d%d%d", r.rng.Intn(10), r.rng.Intn(10), r.rng.Intn(10))
+
 	return []string{
-		"The keypad requires a 3-digit code.",
-		"Calculate the code as follows:",
-		"  First digit: Number of RED wires",
-		"  Second digit: Position of first BLUE wire (1-4, or 0 if none)",
-		"  Third digit: Total number of wires NOT cut",
-		"Use the rotary encoder to enter each digit.",
-		"Press the encoder button to confirm each digit.",
+		fmt.Sprintf("Enter the code: %s", code),
+		"Use the rotary encoder to select each digit.",
+		"Press the encoder button to confirm.",
 	}
 }
 

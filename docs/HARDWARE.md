@@ -14,7 +14,6 @@ This document lists all hardware components required to build the physical "bomb
 | LCD 16x2 I2C | 1 | Display timer, codes, hints | I2C address: 0x27 or 0x3F |
 | Breadboard | 1-2 | Prototyping | 830 points recommended |
 | Jumper wires | ~40 | Connections | Male-to-female, male-to-male |
-| Resistors 10kΩ | 4 | Pull-down for buttons | For WIRES module |
 
 ---
 
@@ -26,8 +25,8 @@ This document lists all hardware components required to build the physical "bomb
 |-----------|-----------|------|-------------|
 | Button 1 (Red) | - | GPIO 19 | Tactile button |
 | Button 2 (Blue) | - | GPIO 26 | Tactile button |
-| Button 3 (Green) | - | GPIO 24 | Tactile button |
-| Button 4 (Yellow) | - | GPIO 23 | Tactile button |
+| Button 3 (Green) | - | GPIO 21 | Tactile button |
+| Button 4 (Yellow) | - | GPIO 15 | Tactile button |
 | LED 1 (Red) | - | GPIO 25 | Wire color indicator |
 | LED 2 (Blue) | - | GPIO 8 | Wire color indicator |
 | LED 3 (Green) | - | GPIO 7 | Wire color indicator |
@@ -73,11 +72,11 @@ Raspberry Pi GPIO Layout (Active pins marked with ←)
    LCD SDA (I2C)   GPIO2 [3]  [4]  5V
    LCD SCL (I2C)   GPIO3 [5]  [6]  GND
                    GPIO4 [7]  [8]  GPIO14
-                    GND  [9]  [10] GPIO15
+  Button 4         GND  [9]  [10] GPIO15  ← Button 4 (Yellow)
     RGB LED Red   GPIO17 [11] [12] GPIO18  ← Buzzer (PWM)
   RGB LED Green   GPIO27 [13] [14] GND
-   RGB LED Blue   GPIO22 [15] [16] GPIO23  ← Button 4
-                   3.3V  [17] [18] GPIO24  ← Button 3
+   RGB LED Blue   GPIO22 [15] [16] GPIO23
+                   3.3V  [17] [18] GPIO24
                   GPIO10 [19] [20] GND
                    GPIO9 [21] [22] GPIO25  ← LED 1 (Red)
                   GPIO11 [23] [24] GPIO8   ← LED 2 (Blue)
@@ -88,12 +87,12 @@ Raspberry Pi GPIO Layout (Active pins marked with ←)
    Rotary SW      GPIO13 [33] [34] GND
    Button 1       GPIO19 [35] [36] GPIO16  ← Hall Sensor
    Button 2       GPIO26 [37] [38] GPIO20
-                    GND  [39] [40] GPIO21
+  Button 3        GND  [39] [40] GPIO21  ← Button 3 (Green)
 ─────────────────────────────────────────────────────
 
 Used GPIO Pins:
   WIRES module:
-    - Buttons: GPIO 19, 26, 24, 23
+    - Buttons: GPIO 19, 26, 21, 15
     - LEDs:    GPIO 25, 8, 7, 1
 
   KEYPAD module (Rotary Encoder):
@@ -131,7 +130,6 @@ Used GPIO Pins:
 | LED 5mm (Blue) | 1 | $0.50 | Wire indicator |
 | LED 5mm (Yellow) | 1 | $0.50 | Wire indicator |
 | Resistors 220Ω | 4 | $0.50 | Current limiting for LEDs |
-| Resistors 10kΩ | 4 | $0.50 | Pull-down for buttons |
 | Small Magnet | 1 | $1 | For Hall sensor module |
 
 **Total additional cost:** ~$5-8
@@ -164,16 +162,12 @@ SCL  ─────────────► GPIO 3 (Pin 5)
 ### Buttons (WIRES module)
 
 ```
-Each button with pull-down resistor:
+Each button with internal pull-up (no external resistor needed):
 
-3.3V ────┬──────── Button ──────── GPIO Pin
-         │
-        [10kΩ]
-         │
-        GND
+GPIO Pin ──────── Button ──────── GND
 
-Button pressed  = HIGH (3.3V)
-Button released = LOW (GND via resistor)
+Button pressed  = LOW (GND)
+Button released = HIGH (internal pull-up)
 ```
 
 ### LEDs (WIRES module indicators)

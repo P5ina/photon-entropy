@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Test a single GPIO pin as button input.
 
+Buttons use internal pull-up resistor:
+  GPIO -> Button -> GND (no external resistor needed)
+
 Usage:
     python test_single_pin.py 19      # Test GPIO 19
-    python test_single_pin.py 24      # Test GPIO 24
-    python test_single_pin.py 4       # Test GPIO 4
+    python test_single_pin.py 15      # Test GPIO 15
 """
 
 import sys
@@ -25,14 +27,13 @@ if len(sys.argv) < 2:
 pin = int(sys.argv[1])
 
 print(f"Testing GPIO {pin}")
+print("Wiring: GPIO -> Button -> GND (internal pull-up)")
 print("Press Ctrl+C to exit\n")
-
-# Try with pull_up=False (external pull-down resistor)
-print(f"Mode: pull_up=False (expects external pull-down resistor)")
 print("-" * 40)
 
 try:
-    btn = Button(pin, pull_up=False, bounce_time=0.05)
+    # pull_up=True: internal pull-up resistor, button connects to GND
+    btn = Button(pin, pull_up=True, bounce_time=0.05)
 
     def on_press():
         print(f"  PRESSED (GPIO {pin})")

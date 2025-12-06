@@ -78,6 +78,7 @@ class WiresModule(BaseModule):
 
         if self.mock:
             print(f"[Wires] Cut wire {index} ({color})")
+            print(f"[Wires] Expected order: {[self.wire_colors[i] for i in self._cut_order]}")
 
         # Check if correct
         expected_index = len(self._cuts_made)

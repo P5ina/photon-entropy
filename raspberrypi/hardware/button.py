@@ -1,9 +1,13 @@
-"""Button driver with debouncing."""
+"""Button driver with debouncing using gpiozero (Pi 5 compatible).
+
+Buttons use internal pull-up resistor:
+  GPIO -> Button -> GND (no external resistor needed)
+"""
 import time
 from typing import Callable, Optional
 
 try:
-    import RPi.GPIO as GPIO
+    from gpiozero import Button as GPIOButton
     HAS_GPIO = True
 except ImportError:
     HAS_GPIO = False
@@ -13,14 +17,14 @@ class Button:
     """Single button with debounce and callback support."""
 
     def __init__(self, pin: int, callback: Optional[Callable] = None,
-                 pull_up: bool = False, debounce_ms: int = 50, mock: bool = False):
+                 debounce_ms: int = 50, mock: bool = False):
         self.pin = pin
         self.callback = callback
-        self.pull_up = pull_up
         self.debounce_ms = debounce_ms
         self.mock = mock or not HAS_GPIO
         self._last_press_time = 0
         self._pressed = False
+        self._gpio_button: Optional[GPIOButton] = None
 
     def setup(self):
         """Initialize the button GPIO."""
@@ -28,23 +32,15 @@ class Button:
             print(f"[Button] Mock mode - pin {self.pin}")
             return
 
-        GPIO.setmode(GPIO.BCM)
-
-        if self.pull_up:
-            GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        else:
-            GPIO.setup(self.pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-
-        # Add event detection
-        edge = GPIO.FALLING if self.pull_up else GPIO.RISING
-        GPIO.add_event_detect(
+        # Use internal pull-up: button connects GPIO to GND when pressed
+        self._gpio_button = GPIOButton(
             self.pin,
-            edge,
-            callback=self._handle_press,
-            bouncetime=self.debounce_ms
+            pull_up=True,
+            bounce_time=self.debounce_ms / 1000.0
         )
+        self._gpio_button.when_pressed = self._handle_press
 
-    def _handle_press(self, channel):
+    def _handle_press(self):
         """Handle button press with debounce."""
         current_time = time.time() * 1000
         if current_time - self._last_press_time > self.debounce_ms:
@@ -57,11 +53,9 @@ class Button:
         """Check if button is currently pressed."""
         if self.mock:
             return False
-
-        if self.pull_up:
-            return GPIO.input(self.pin) == GPIO.LOW
-        else:
-            return GPIO.input(self.pin) == GPIO.HIGH
+        if self._gpio_button:
+            return self._gpio_button.is_pressed
+        return False
 
     def was_pressed(self) -> bool:
         """Check if button was pressed since last check (clears flag)."""
@@ -89,12 +83,10 @@ class Button:
                 self.callback()
 
     def cleanup(self):
-        """Clean up GPIO event detection."""
-        if not self.mock:
-            try:
-                GPIO.remove_event_detect(self.pin)
-            except:
-                pass
+        """Clean up GPIO."""
+        if self._gpio_button:
+            self._gpio_button.close()
+            self._gpio_button = None
 
 
 class ButtonGroup:

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Test script for buttons (WIRES module).
 
+Buttons use internal pull-up resistor:
+  GPIO -> Button -> GND (no external resistor needed)
+
 Usage:
     python test_buttons.py           # Test all 4 buttons
     python test_buttons.py --mock    # Run in mock mode
@@ -31,6 +34,9 @@ def test_buttons(config: Config, mock: bool = False):
     button_pins = config.wire_buttons
     colors = ["Red", "Blue", "Green", "Yellow"]
 
+    print("\nWiring: GPIO -> Button -> GND (internal pull-up)")
+    print("        No external resistor needed\n")
+
     if mock or not HAS_GPIO:
         print("[MOCK MODE]")
         print("\nButton pins configuration:")
@@ -44,7 +50,8 @@ def test_buttons(config: Config, mock: bool = False):
 
     buttons = []
     for i, (pin, color) in enumerate(zip(button_pins, colors)):
-        btn = Button(pin, pull_up=False)
+        # pull_up=True: button connects GPIO to GND when pressed
+        btn = Button(pin, pull_up=True, bounce_time=0.05)
         btn.when_pressed = lambda c=color, p=pin: print(f"  ✓ Button {c} (GPIO {p}) PRESSED")
         btn.when_released = lambda c=color, p=pin: print(f"    Button {c} (GPIO {p}) released")
         buttons.append(btn)

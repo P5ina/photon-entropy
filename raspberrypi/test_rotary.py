@@ -10,13 +10,18 @@ import argparse
 import time
 
 try:
+    # Force lgpio pin factory for Pi 5
+    from gpiozero.pins.lgpio import LGPIOFactory
+    from gpiozero import Device
+    Device.pin_factory = LGPIOFactory()
+
     from gpiozero import RotaryEncoder, Button, InputDevice
     HAS_GPIO = True
-    GPIO_LIB = "gpiozero"
-except ImportError:
+    GPIO_LIB = "gpiozero+lgpio"
+except ImportError as e:
     HAS_GPIO = False
     GPIO_LIB = None
-    print("[WARN] gpiozero not found, running in mock mode")
+    print(f"[WARN] gpiozero/lgpio not found: {e}")
     print("       Install with: pip install gpiozero lgpio")
 
 from config import Config

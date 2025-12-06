@@ -18,7 +18,7 @@ struct ModuleListView: View {
                         title: "Wires",
                         icon: "line.3.horizontal",
                         color: .red,
-                        isSolved: viewModel.game?.modules["wires"]?.solved ?? false
+                        isSolved: viewModel.isModuleSolved("wires")
                     ) {
                         WiresInstructionsView(manual: manual.wires)
                     }
@@ -27,7 +27,7 @@ struct ModuleListView: View {
                         title: "Keypad",
                         icon: "number.circle",
                         color: .blue,
-                        isSolved: viewModel.game?.modules["keypad"]?.solved ?? false
+                        isSolved: viewModel.isModuleSolved("keypad")
                     ) {
                         KeypadInstructionsView(manual: manual.keypad)
                     }
@@ -36,7 +36,7 @@ struct ModuleListView: View {
                         title: "Simon Says",
                         icon: "circle.hexagongrid.fill",
                         color: .purple,
-                        isSolved: viewModel.game?.modules["simon"]?.solved ?? false
+                        isSolved: viewModel.isModuleSolved("simon")
                     ) {
                         SimonInstructionsView(manual: manual.simon)
                     }
@@ -45,7 +45,7 @@ struct ModuleListView: View {
                         title: "Magnet",
                         icon: "magnet",
                         color: .orange,
-                        isSolved: viewModel.game?.modules["magnet"]?.solved ?? false
+                        isSolved: viewModel.isModuleSolved("magnet")
                     ) {
                         MagnetInstructionsView(manual: manual.magnet)
                     }

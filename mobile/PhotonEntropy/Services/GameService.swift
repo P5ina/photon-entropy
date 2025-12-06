@@ -205,15 +205,15 @@ class GameService: ObservableObject {
                 currentGame = currentGame.map { game in
                     Game(
                         id: game.id,
-                        seed: game.seed,
+                        code: game.code,
                         state: game.state,
                         timeLimit: game.timeLimit,
                         timeRemaining: remaining,
                         maxStrikes: game.maxStrikes,
                         strikes: game.strikes,
                         modules: game.modules,
-                        players: game.players,
-                        createdAt: game.createdAt
+                        bombConnected: game.bombConnected,
+                        expertConnected: game.expertConnected
                     )
                 }
             }
@@ -223,15 +223,15 @@ class GameService: ObservableObject {
                 currentGame = currentGame.map { game in
                     Game(
                         id: game.id,
-                        seed: game.seed,
+                        code: game.code,
                         state: game.state,
                         timeLimit: game.timeLimit,
                         timeRemaining: game.timeRemaining,
                         maxStrikes: game.maxStrikes,
                         strikes: strikes,
                         modules: game.modules,
-                        players: game.players,
-                        createdAt: game.createdAt
+                        bombConnected: game.bombConnected,
+                        expertConnected: game.expertConnected
                     )
                 }
             }
@@ -248,15 +248,15 @@ class GameService: ObservableObject {
             currentGame = currentGame.map { game in
                 Game(
                     id: game.id,
-                    seed: game.seed,
+                    code: game.code,
                     state: .won,
                     timeLimit: game.timeLimit,
                     timeRemaining: game.timeRemaining,
                     maxStrikes: game.maxStrikes,
                     strikes: game.strikes,
                     modules: game.modules,
-                    players: game.players,
-                    createdAt: game.createdAt
+                    bombConnected: game.bombConnected,
+                    expertConnected: game.expertConnected
                 )
             }
 
@@ -264,15 +264,15 @@ class GameService: ObservableObject {
             currentGame = currentGame.map { game in
                 Game(
                     id: game.id,
-                    seed: game.seed,
+                    code: game.code,
                     state: .lost,
                     timeLimit: game.timeLimit,
                     timeRemaining: game.timeRemaining,
                     maxStrikes: game.maxStrikes,
                     strikes: game.strikes,
                     modules: game.modules,
-                    players: game.players,
-                    createdAt: game.createdAt
+                    bombConnected: game.bombConnected,
+                    expertConnected: game.expertConnected
                 )
             }
 

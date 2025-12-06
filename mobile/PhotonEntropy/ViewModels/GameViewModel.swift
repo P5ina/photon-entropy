@@ -115,7 +115,7 @@ class GameViewModel: ObservableObject {
     }
 
     var solvedModulesCount: Int {
-        game?.modules.values.filter { $0.solved }.count ?? 0
+        game?.modules.filter { $0.state == "solved" }.count ?? 0
     }
 
     var totalModulesCount: Int {
@@ -128,5 +128,9 @@ class GameViewModel: ObservableObject {
 
     var isGameOver: Bool {
         game?.state == .won || game?.state == .lost
+    }
+
+    func isModuleSolved(_ type: String) -> Bool {
+        game?.modules.first { $0.type == type }?.state == "solved"
     }
 }

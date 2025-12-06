@@ -12,8 +12,8 @@ import Foundation
 enum GameState: String, Codable {
     case lobby
     case playing
-    case won
-    case lost
+    case won = "win"
+    case lost = "lose"
 }
 
 enum PlayerRole: String, Codable {
@@ -23,41 +23,35 @@ enum PlayerRole: String, Codable {
 
 struct Game: Codable, Identifiable {
     let id: String
-    let seed: Int
+    let code: String
     let state: GameState
     let timeLimit: Int
     let timeRemaining: Int
     let maxStrikes: Int
     let strikes: Int
-    let modules: [String: ModuleState]
-    let players: [Player]
-    let createdAt: Date
+    let modules: [Module]
+    let bombConnected: Bool
+    let expertConnected: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, seed, state
+        case id = "game_id"
+        case code, state
         case timeLimit = "time_limit"
-        case timeRemaining = "time_remaining"
+        case timeRemaining = "time_left"
         case maxStrikes = "max_strikes"
-        case strikes, modules, players
-        case createdAt = "created_at"
+        case strikes, modules
+        case bombConnected = "bomb_connected"
+        case expertConnected = "expert_connected"
     }
 }
 
-struct Player: Codable, Identifiable {
+struct Module: Codable, Identifiable {
     let id: String
-    let role: PlayerRole
-    let joinedAt: Date
-
-    enum CodingKeys: String, CodingKey {
-        case id, role
-        case joinedAt = "joined_at"
-    }
-}
-
-struct ModuleState: Codable {
-    let solved: Bool
+    let type: String
+    let state: String
     let config: [String: AnyCodableValue]?
 }
+
 
 // MARK: - Module Configs
 

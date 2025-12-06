@@ -42,32 +42,13 @@ def test_rotary(config: Config, mock: bool = False):
     print(f"GPIO Library: {GPIO_LIB}")
     print("\nRotate the encoder and press the button. Press Ctrl+C to exit.\n")
 
-    # Create rotary encoder
+    # Create rotary encoder with polling approach (more reliable on Pi 5)
     encoder = RotaryEncoder(clk_pin, dt_pin, max_steps=0)
-    button = Button(sw_pin, pull_up=True)
+    button = Button(sw_pin, pull_up=True, bounce_time=0.05)
 
     current_value = 0
-
-    def on_rotate_cw():
-        nonlocal current_value
-        current_value += 1
-        print(f"  → Clockwise     | Value: {current_value}")
-
-    def on_rotate_ccw():
-        nonlocal current_value
-        current_value -= 1
-        print(f"  ← Counter-CW    | Value: {current_value}")
-
-    def on_button_press():
-        print(f"  ✓ Button PRESSED | Current value: {current_value}")
-
-    def on_button_release():
-        print(f"    Button released")
-
-    encoder.when_rotated_clockwise = on_rotate_cw
-    encoder.when_rotated_counter_clockwise = on_rotate_ccw
-    button.when_pressed = on_button_press
-    button.when_released = on_button_release
+    last_steps = 0
+    last_button_state = False
 
     print("-" * 50)
     print(f"Starting value: {current_value}")
@@ -75,7 +56,26 @@ def test_rotary(config: Config, mock: bool = False):
 
     try:
         while True:
-            time.sleep(0.1)
+            # Poll encoder steps
+            steps = encoder.steps
+            if steps != last_steps:
+                diff = steps - last_steps
+                current_value += diff
+                if diff > 0:
+                    print(f"  -> Clockwise     | Steps: {steps} | Value: {current_value}")
+                else:
+                    print(f"  <- Counter-CW    | Steps: {steps} | Value: {current_value}")
+                last_steps = steps
+
+            # Poll button state
+            button_pressed = button.is_pressed
+            if button_pressed and not last_button_state:
+                print(f"  * Button PRESSED | Current value: {current_value}")
+            elif not button_pressed and last_button_state:
+                print(f"    Button released")
+            last_button_state = button_pressed
+
+            time.sleep(0.01)  # 10ms polling interval
     except KeyboardInterrupt:
         print("\n\nTest ended.")
     finally:

@@ -213,6 +213,12 @@ class GameClient(WebSocketClient):
 
     def _on_game_started(self, data: dict):
         """Handle game started event."""
+        # Only process if it's for our game
+        event_game_id = data.get("game_id")
+        if self.game_id and event_game_id != self.game_id:
+            print(f"[Game] Ignoring game_started for different game: {event_game_id}")
+            return
+
         self.game_state = data
         print(f"[Game] Started! Data keys: {data.keys() if data else 'None'}")
         if self.on_game_started:
@@ -220,6 +226,11 @@ class GameClient(WebSocketClient):
 
     def _on_timer_tick(self, data: dict):
         """Handle timer tick."""
+        # Only process if it's for our game
+        event_game_id = data.get("game_id")
+        if self.game_id and event_game_id != self.game_id:
+            return
+
         remaining = data.get("time_left", data.get("remaining", 0))
         if self.on_timer_tick:
             self.on_timer_tick(remaining)
@@ -240,12 +251,22 @@ class GameClient(WebSocketClient):
 
     def _on_game_won(self, data: dict):
         """Handle game won."""
+        # Only process if it's for our game
+        event_game_id = data.get("game_id")
+        if self.game_id and event_game_id != self.game_id:
+            return
+
         print("[Game] WON!")
         if self.on_game_won:
             self.on_game_won()
 
     def _on_game_lost(self, data: dict):
         """Handle game lost."""
+        # Only process if it's for our game
+        event_game_id = data.get("game_id")
+        if self.game_id and event_game_id != self.game_id:
+            return
+
         reason = data.get("reason", "unknown")
         print(f"[Game] LOST: {reason}")
         if self.on_game_lost:

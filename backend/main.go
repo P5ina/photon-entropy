@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/P5ina/photon-entropy/config"
-	"github.com/P5ina/photon-entropy/db/sqlc"
-	"github.com/P5ina/photon-entropy/entropy"
-	"github.com/P5ina/photon-entropy/handlers"
-	"github.com/P5ina/photon-entropy/verifier"
-	"github.com/P5ina/photon-entropy/ws"
+	"photon-entropy/config"
+	"photon-entropy/db/sqlc"
+	"photon-entropy/game"
+	"photon-entropy/handlers"
+	"photon-entropy/ws"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/pressly/goose/v3"
@@ -29,8 +29,10 @@ func main() {
 	env := config.LoadEnv()
 	cfg, err := config.Load("config.yaml")
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Printf("Warning: Failed to load config.yaml, using defaults: %v", err)
+		cfg = config.DefaultConfig()
 	}
+	_ = cfg // Config available for future use
 
 	if err := os.MkdirAll(filepath.Dir(env.DatabasePath), 0755); err != nil {
 		log.Fatalf("Failed to create data directory: %v", err)
@@ -50,18 +52,61 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	queries := sqlc.New(db)
-
-	pool := entropy.NewPool(cfg.Entropy.PoolSize)
-	v := verifier.New()
+	_ = sqlc.New(db) // Keep for potential future DB usage
 
 	// Initialize WebSocket hub
 	hub := ws.NewHub()
 	go hub.Run()
 
-	entropyHandler := handlers.NewEntropyHandler(queries, pool, v, cfg, hub)
-	deviceHandler := handlers.NewDeviceHandler(queries, cfg, hub)
-	statsHandler := handlers.NewStatsHandler(queries, pool)
+	// Initialize game engine
+	gameEngine := game.NewEngine()
+
+	// Connect game events to WebSocket broadcasts
+	gameEngine.OnGameEvent = func(event game.GameEvent) {
+		switch event.Type {
+		case game.EventGameCreated:
+			hub.BroadcastGameEvent(ws.MessageTypeGameCreated, map[string]any{
+				"game_id": event.GameID,
+				"data":    event.Data,
+			})
+		case game.EventPlayerJoined:
+			hub.BroadcastGameEvent(ws.MessageTypePlayerJoined, map[string]any{
+				"game_id": event.GameID,
+				"data":    event.Data,
+			})
+		case game.EventGameStarted:
+			hub.BroadcastGameEvent(ws.MessageTypeGameStarted, map[string]any{
+				"game_id": event.GameID,
+				"data":    event.Data,
+			})
+		case game.EventTimerTick:
+			if timeLeft, ok := event.Data["time_left"].(int); ok {
+				hub.BroadcastTimerTick(event.GameID, timeLeft)
+			}
+		case game.EventModuleAction:
+			hub.BroadcastGameEvent(ws.MessageTypeModuleAction, map[string]any{
+				"game_id":   event.GameID,
+				"module_id": event.ModuleID,
+				"data":      event.Data,
+			})
+		case game.EventModuleSolved:
+			hub.BroadcastModuleSolved(event.GameID, event.ModuleID)
+		case game.EventStrike:
+			strikes, _ := event.Data["strikes"].(int)
+			maxStrikes, _ := event.Data["max_strikes"].(int)
+			reason, _ := event.Data["reason"].(string)
+			hub.BroadcastStrike(event.GameID, event.ModuleID, reason, strikes, maxStrikes)
+		case game.EventGameWon:
+			timeRemaining, _ := event.Data["time_remaining"].(int)
+			hub.BroadcastGameEnd(event.GameID, true, "all_modules_solved", timeRemaining)
+		case game.EventGameLost:
+			reason, _ := event.Data["reason"].(string)
+			hub.BroadcastGameEnd(event.GameID, false, reason, 0)
+		}
+	}
+
+	// Initialize handlers
+	gameHandler := handlers.NewGameHandler(gameEngine)
 	wsHandler := handlers.NewWebSocketHandler(hub)
 
 	if env.GinMode == "release" {
@@ -82,23 +127,16 @@ func main() {
 
 	api := r.Group("/api/v1")
 	{
-		// Entropy endpoints
-		api.POST("/entropy/submit", entropyHandler.Submit)
-		api.GET("/entropy/random", entropyHandler.Random)
-		api.GET("/entropy/password", entropyHandler.Password)
-		api.GET("/entropy/uuid", entropyHandler.UUID)
-		api.GET("/entropy/normal", entropyHandler.Normal)
-
-		// Device endpoints
-		api.GET("/device/status", deviceHandler.Status)
-		api.POST("/device/status", deviceHandler.UpdateStatus)
-		api.GET("/device/history", deviceHandler.History)
-
-		// Stats endpoint
-		api.GET("/stats", statsHandler.Stats)
+		// Game endpoints
+		api.POST("/game/create", gameHandler.CreateGame)
+		api.POST("/game/join", gameHandler.JoinGame)
+		api.POST("/game/start", gameHandler.StartGame)
+		api.GET("/game/state", gameHandler.GetGameState)
+		api.GET("/game/manual", gameHandler.GetManual)
+		api.POST("/game/action", gameHandler.ProcessAction)
 	}
 
-	log.Printf("Starting server on %s", env.ServerAddress())
+	log.Printf("Starting Bomb Defusal server on %s", env.ServerAddress())
 	if err := r.Run(env.ServerAddress()); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

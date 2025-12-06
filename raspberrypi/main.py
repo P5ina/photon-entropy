@@ -1,170 +1,150 @@
 #!/usr/bin/env python3
-import argparse
-import logging
+"""Bomb Defusal Game - Raspberry Pi Controller."""
+import asyncio
 import signal
 import sys
-import time
-from typing import Optional
+import argparse
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from config import Config
-from entropy_collector import EntropyCollector
-from entropy_tester import EntropyTester
-from api_client import APIClient
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger("photon-entropy")
-
-running = True
+from game_controller import GameController
 
 
-def signal_handler(signum, frame):
-    global running
-    logger.info("Shutdown signal received")
-    running = False
+# Load environment variables
+load_dotenv()
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="PhotonEntropy IoT Client - Collects entropy from photoresistor"
-    )
-    parser.add_argument(
-        "--server",
-        type=str,
-        help="Backend server URL (default: http://localhost:8080)",
-    )
-    parser.add_argument(
-        "--device-id",
-        type=str,
-        help="Device ID (default: pi-001)",
-    )
-    parser.add_argument(
-        "--interval",
-        type=int,
-        help="Collection interval in seconds (default: 30)",
-    )
-    parser.add_argument(
-        "--samples",
-        type=int,
-        help="Number of samples per commit (default: 500)",
-    )
-    parser.add_argument(
-        "--skip-darkness-check",
-        action="store_true",
-        help="Skip waiting for darkness before collecting",
-    )
-    parser.add_argument(
-        "--once",
-        action="store_true",
-        help="Run once and exit (useful for testing)",
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug logging",
-    )
-    return parser.parse_args()
+async def main():
+    """Main entry point."""
+    parser = argparse.ArgumentParser(description="Bomb Defusal Game Controller")
+    parser.add_argument("--mock", action="store_true", help="Run in mock hardware mode")
+    parser.add_argument("--game-id", type=str, help="Game ID to join")
+    parser.add_argument("--server", type=str, help="Server URL override")
+    args = parser.parse_args()
 
-
-def main():
-    global running
-
-    args = parse_args()
-
-    if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-
+    # Load configuration
     config = Config.from_env()
 
+    if args.mock:
+        config.mock_hardware = True
     if args.server:
         config.server_url = args.server
-    if args.device_id:
-        config.device_id = args.device_id
-    if args.interval:
-        config.collect_interval = args.interval
-    if args.samples:
-        config.samples_per_commit = args.samples
 
-    logger.info(f"PhotonEntropy IoT Client starting")
-    logger.info(f"  Device ID: {config.device_id}")
-    logger.info(f"  Server: {config.server_url}")
-    logger.info(f"  Samples per commit: {config.samples_per_commit}")
-    logger.info(f"  Collect interval: {config.collect_interval}s")
+    print("=" * 50)
+    print("   BOMB DEFUSAL GAME CONTROLLER")
+    print("=" * 50)
+    print(f"Server: {config.server_url}")
+    print(f"Device: {config.device_id}")
+    print(f"Mock: {config.mock_hardware}")
+    print("=" * 50)
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # Create game controller
+    controller = GameController(config)
 
-    collector = EntropyCollector(config)
-    tester = EntropyTester()
-    client = APIClient(config)
+    # Handle shutdown
+    shutdown_event = asyncio.Event()
 
-    if not client.health_check():
-        logger.error(f"Cannot connect to server at {config.server_url}")
-        sys.exit(1)
+    def handle_shutdown(sig, frame):
+        print("\n[Main] Shutting down...")
+        shutdown_event.set()
 
-    logger.info("Connected to server successfully")
+    signal.signal(signal.SIGINT, handle_shutdown)
+    signal.signal(signal.SIGTERM, handle_shutdown)
 
-    while running:
-        try:
-            is_too_bright = not collector.is_dark()
+    try:
+        # Initialize hardware
+        controller.setup()
 
-            if not args.skip_darkness_check:
-                if is_too_bright:
-                    if not collector.wait_for_darkness(timeout=config.collect_interval):
-                        logger.info("Still too bright, skipping this cycle")
-                        # Report status even when too bright
-                        client.report_status(is_too_bright=True)
-                        if args.once:
-                            break
-                        continue
-                    is_too_bright = False
+        # Connect to server
+        await controller.connect(config.server_url)
 
-            samples, timestamps = collector.collect()
+        # Join game if specified
+        if args.game_id:
+            await controller.join_game(args.game_id)
 
-            results = tester.test(samples)
-            logger.info(f"Local quality check: {results.quality:.0%}")
-            logger.info(f"  Frequency: {'PASS' if results.frequency.passed else 'FAIL'} ({results.frequency.value:.4f})")
-            logger.info(f"  Runs: {'PASS' if results.runs.passed else 'FAIL'} (max={results.runs.value:.0f})")
-            logger.info(f"  Chi-Square: {'PASS' if results.chi_square.passed else 'FAIL'} ({results.chi_square.value:.4f})")
-            logger.info(f"  Variance: {'PASS' if results.variance.passed else 'FAIL'} ({results.variance.value:.4f})")
+        # Run game loop
+        print("[Main] Starting game loop...")
 
-            if results.quality < config.min_quality:
-                logger.warning(f"Quality {results.quality:.0%} below threshold {config.min_quality:.0%}, skipping submit")
-                if args.once:
-                    break
-                time.sleep(config.collect_interval)
-                continue
+        # Create tasks
+        game_task = asyncio.create_task(controller.run())
+        shutdown_task = asyncio.create_task(shutdown_event.wait())
 
-            response = client.submit(samples, timestamps, is_too_bright=is_too_bright)
+        # Wait for either game to end or shutdown
+        done, pending = await asyncio.wait(
+            [game_task, shutdown_task],
+            return_when=asyncio.FIRST_COMPLETED
+        )
 
-            if response:
-                logger.info(f"Server response: quality={response.quality:.0%}, accepted={response.accepted}")
-            else:
-                logger.error("Failed to submit samples to server")
+        # Cancel pending tasks
+        for task in pending:
+            task.cancel()
 
-            if args.once:
-                break
+    except KeyboardInterrupt:
+        print("\n[Main] Interrupted")
+    except Exception as e:
+        print(f"[Main] Error: {e}")
+        raise
+    finally:
+        controller.cleanup()
+        print("[Main] Goodbye!")
 
-            logger.info(f"Sleeping for {config.collect_interval}s...")
-            for _ in range(config.collect_interval):
-                if not running:
-                    break
-                time.sleep(1)
 
-        except Exception as e:
-            logger.exception(f"Error in main loop: {e}")
-            if args.once:
-                break
-            time.sleep(10)
+def run_demo():
+    """Run a demo without server connection."""
+    print("=" * 50)
+    print("   BOMB DEFUSAL DEMO MODE")
+    print("=" * 50)
 
-    logger.info("PhotonEntropy IoT Client stopped")
+    config = Config.from_env()
+    config.mock_hardware = True
+
+    controller = GameController(config)
+    controller.setup()
+
+    print("\nDemo: Simulating game actions...")
+    print("-" * 30)
+
+    # Simulate game start with more strikes allowed
+    controller._on_game_started({
+        "game_id": "demo-001",
+        "time_limit": 120,
+        "max_strikes": 10,  # Allow more mistakes for demo
+        "modules": {
+            "wires": {"wire_order": [1, 3, 0]},
+            "keypad": {"code": [4, 2, 7]},
+            "simon": {"sequence": ["red", "blue", "green"], "rounds": 2},
+            "magnet": {"safe_zones": [(5, 10)], "required": 1},
+            "stability": {"max_tilts": 5, "stable_duration": 10},
+        }
+    })
+
+    print("\n--- Testing Wires Module ---")
+    controller.wires.simulate_cut(1)  # Correct (blue)
+    controller.wires.simulate_cut(3)  # Correct (orange)
+    controller.wires.simulate_cut(0)  # Correct (red) - solved!
+
+    print("\n--- Testing Keypad Module ---")
+    # Enter code: 4, 2, 7
+    for _ in range(4):
+        controller.keypad.simulate_rotate(1)  # Go to 4
+    controller.keypad.simulate_confirm()  # 4 - correct
+
+    for _ in range(2):
+        controller.keypad.simulate_rotate(1)  # Go to 2 (from 0)
+    controller.keypad.simulate_confirm()  # 2 - correct
+
+    for _ in range(7):
+        controller.keypad.simulate_rotate(1)  # Go to 7 (from 0)
+    controller.keypad.simulate_confirm()  # 7 - correct - solved!
+
+    print("\n--- Cleanup ---")
+    controller.cleanup()
+    print("Demo complete!")
 
 
 if __name__ == "__main__":
-    main()
+    if "--demo" in sys.argv:
+        run_demo()
+    else:
+        asyncio.run(main())

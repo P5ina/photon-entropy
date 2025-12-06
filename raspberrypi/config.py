@@ -1,35 +1,64 @@
+"""Configuration for Bomb Defusal game."""
 import os
 from dataclasses import dataclass
 
 
 @dataclass
 class Config:
-    server_url: str = "http://localhost:8080"
-    device_id: str = "pi-001"
-    collect_interval: int = 30  # seconds between collections
-    samples_per_commit: int = 500  # samples per commit
-    light_threshold: int = 2000  # ADC value threshold (collect only in dark)
-    adc_address: int = 0x48  # ADS1115 I2C address
-    adc_channel: int = 0  # ADC channel (A0)
-    sample_rate: int = 860  # samples per second
-    min_quality: float = 0.5  # minimum quality to submit
+    """Game configuration."""
+
+    # Server settings
+    server_url: str = "wss://entropy.p5ina.dev/ws"
+    api_url: str = "https://entropy.p5ina.dev"
+    device_id: str = "bomb-001"
+
+    # GPIO pins - Wires module (4 buttons + 4 LEDs)
+    wire_buttons: tuple = (19, 26, 21, 20)
+    wire_leds: tuple = (25, 8, 7, 1)
+
+    # GPIO pins - Keypad module (rotary encoder)
+    rotary_clk: int = 5
+    rotary_dt: int = 6
+    rotary_sw: int = 13
+
+    # GPIO pins - Simon module (RGB LED + touch)
+    rgb_red: int = 17
+    rgb_green: int = 27
+    rgb_blue: int = 22
+    touch_pin: int = 12
+
+    # GPIO pins - Magnet module (Hall sensor)
+    hall_pin: int = 16
+
+    # GPIO pins - Stability module (tilt sensor)
+    tilt_pin: int = 24
+
+    # GPIO pins - Output
+    buzzer_pin: int = 18
+
+    # I2C settings (LCD)
+    lcd_address: int = 0x27  # Common addresses: 0x27 or 0x3F
+    lcd_cols: int = 16
+    lcd_rows: int = 2
+
+    # Game settings
+    debug: bool = False
+    mock_hardware: bool = False
 
     @classmethod
     def from_env(cls) -> "Config":
-        adc_addr_env = os.getenv("ADC_ADDRESS")
-        if adc_addr_env:
-            adc_address = int(adc_addr_env, 16) if adc_addr_env.startswith("0x") else int(adc_addr_env)
+        """Load configuration from environment variables."""
+        lcd_addr_env = os.getenv("LCD_ADDRESS")
+        if lcd_addr_env:
+            lcd_address = int(lcd_addr_env, 16) if lcd_addr_env.startswith("0x") else int(lcd_addr_env)
         else:
-            adc_address = cls.adc_address
+            lcd_address = cls.lcd_address
 
         return cls(
             server_url=os.getenv("SERVER_URL", cls.server_url),
+            api_url=os.getenv("API_URL", cls.api_url),
             device_id=os.getenv("DEVICE_ID", cls.device_id),
-            collect_interval=int(os.getenv("COLLECT_INTERVAL", str(cls.collect_interval))),
-            samples_per_commit=int(os.getenv("SAMPLES_PER_COMMIT", str(cls.samples_per_commit))),
-            light_threshold=int(os.getenv("LIGHT_THRESHOLD", str(cls.light_threshold))),
-            adc_address=adc_address,
-            adc_channel=int(os.getenv("ADC_CHANNEL", str(cls.adc_channel))),
-            sample_rate=int(os.getenv("SAMPLE_RATE", str(cls.sample_rate))),
-            min_quality=float(os.getenv("MIN_QUALITY", str(cls.min_quality))),
+            lcd_address=lcd_address,
+            debug=os.getenv("DEBUG", "false").lower() == "true",
+            mock_hardware=os.getenv("MOCK_HARDWARE", "false").lower() == "true",
         )

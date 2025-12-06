@@ -1,6 +1,6 @@
-requests>=2.28.0
+# Core dependencies
+websockets>=12.0
 python-dotenv>=1.0.0
+requests>=2.28.0
 
-# Raspberry Pi hardware support (install only on Pi)
-# adafruit-circuitpython-ads1x15>=2.2.0
-# adafruit-blinka>=8.0.0
+# Development/testing (mock hardware mode)

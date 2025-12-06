@@ -9,18 +9,17 @@ import (
 )
 
 type Config struct {
-	Entropy EntropyConfig `yaml:"entropy"`
-	Device  DeviceConfig  `yaml:"device"`
-}
-
-type EntropyConfig struct {
-	MinSamples int     `yaml:"min_samples"`
-	MinQuality float64 `yaml:"min_quality"`
-	PoolSize   int     `yaml:"pool_size"`
+	Device DeviceConfig `yaml:"device"`
+	Game   GameConfig   `yaml:"game"`
 }
 
 type DeviceConfig struct {
 	OfflineTimeout int `yaml:"offline_timeout"`
+}
+
+type GameConfig struct {
+	DefaultTimeLimit int `yaml:"default_time_limit"`
+	DefaultStrikes   int `yaml:"default_strikes"`
 }
 
 type Env struct {
@@ -32,13 +31,12 @@ type Env struct {
 
 func Load(path string) (*Config, error) {
 	cfg := &Config{
-		Entropy: EntropyConfig{
-			MinSamples: 100,
-			MinQuality: 0.5,
-			PoolSize:   4096,
-		},
 		Device: DeviceConfig{
 			OfflineTimeout: 120,
+		},
+		Game: GameConfig{
+			DefaultTimeLimit: 300,
+			DefaultStrikes:   3,
 		},
 	}
 
@@ -86,4 +84,17 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return v
 	}
 	return defaultValue
+}
+
+// DefaultConfig returns default configuration
+func DefaultConfig() *Config {
+	return &Config{
+		Device: DeviceConfig{
+			OfflineTimeout: 120,
+		},
+		Game: GameConfig{
+			DefaultTimeLimit: 300,
+			DefaultStrikes:   3,
+		},
+	}
 }

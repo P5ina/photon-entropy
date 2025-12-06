@@ -9,10 +9,20 @@ import (
 type MessageType string
 
 const (
-	MessageTypePoolUpdate   MessageType = "pool_update"
+	// Game events
+	MessageTypeGameCreated  MessageType = "game_created"
+	MessageTypePlayerJoined MessageType = "player_joined"
+	MessageTypeGameStarted  MessageType = "game_started"
+	MessageTypeTimerTick    MessageType = "timer_tick"
+	MessageTypeModuleAction MessageType = "module_action"
+	MessageTypeModuleSolved MessageType = "module_solved"
+	MessageTypeStrike       MessageType = "strike"
+	MessageTypeGameWon      MessageType = "game_won"
+	MessageTypeGameLost     MessageType = "game_lost"
+	MessageTypeGameState    MessageType = "game_state"
+
+	// Device events
 	MessageTypeDeviceUpdate MessageType = "device_update"
-	MessageTypeNewCommit    MessageType = "new_commit"
-	MessageTypeStats        MessageType = "stats_update"
 )
 
 type Message struct {
@@ -21,34 +31,11 @@ type Message struct {
 	Timestamp time.Time   `json:"timestamp"`
 }
 
-type PoolUpdateData struct {
-	Size    int `json:"size"`
-	MaxSize int `json:"max_size"`
-}
-
 type DeviceUpdateData struct {
-	DeviceID       string    `json:"device_id"`
-	IsOnline       bool      `json:"is_online"`
-	LastSeen       time.Time `json:"last_seen"`
-	TotalCommits   int64     `json:"total_commits"`
-	AverageQuality float64   `json:"average_quality"`
-	IsTooBright    bool      `json:"is_too_bright"`
-}
-
-type NewCommitData struct {
-	ID        string    `json:"id"`
-	DeviceID  string    `json:"device_id"`
-	Quality   float64   `json:"quality"`
-	Samples   int       `json:"samples"`
-	Accepted  bool      `json:"accepted"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-type StatsUpdateData struct {
-	TotalDevices    int `json:"total_devices"`
-	TotalCommits    int `json:"total_commits"`
-	TotalSamples    int `json:"total_samples"`
-	EntropyPoolSize int `json:"entropy_pool_size"`
+	DeviceID    string    `json:"device_id"`
+	IsOnline    bool      `json:"is_online"`
+	LastSeen    time.Time `json:"last_seen"`
+	IsTooBright bool      `json:"is_too_bright"`
 }
 
 type Hub struct {
@@ -116,52 +103,14 @@ func (h *Hub) Broadcast(msg Message) {
 	h.broadcast <- data
 }
 
-func (h *Hub) BroadcastPoolUpdate(size, maxSize int) {
-	h.Broadcast(Message{
-		Type: MessageTypePoolUpdate,
-		Data: PoolUpdateData{
-			Size:    size,
-			MaxSize: maxSize,
-		},
-	})
-}
-
-func (h *Hub) BroadcastDeviceUpdate(deviceID string, isOnline bool, lastSeen time.Time, totalCommits int64, avgQuality float64, isTooBright bool) {
+func (h *Hub) BroadcastDeviceUpdate(deviceID string, isOnline bool, lastSeen time.Time, isTooBright bool) {
 	h.Broadcast(Message{
 		Type: MessageTypeDeviceUpdate,
 		Data: DeviceUpdateData{
-			DeviceID:       deviceID,
-			IsOnline:       isOnline,
-			LastSeen:       lastSeen,
-			TotalCommits:   totalCommits,
-			AverageQuality: avgQuality,
-			IsTooBright:    isTooBright,
-		},
-	})
-}
-
-func (h *Hub) BroadcastNewCommit(id, deviceID string, quality float64, samples int, accepted bool, createdAt time.Time) {
-	h.Broadcast(Message{
-		Type: MessageTypeNewCommit,
-		Data: NewCommitData{
-			ID:        id,
-			DeviceID:  deviceID,
-			Quality:   quality,
-			Samples:   samples,
-			Accepted:  accepted,
-			CreatedAt: createdAt,
-		},
-	})
-}
-
-func (h *Hub) BroadcastStats(totalDevices, totalCommits, totalSamples, poolSize int) {
-	h.Broadcast(Message{
-		Type: MessageTypeStats,
-		Data: StatsUpdateData{
-			TotalDevices:    totalDevices,
-			TotalCommits:    totalCommits,
-			TotalSamples:    totalSamples,
-			EntropyPoolSize: poolSize,
+			DeviceID:    deviceID,
+			IsOnline:    isOnline,
+			LastSeen:    lastSeen,
+			IsTooBright: isTooBright,
 		},
 	})
 }
@@ -170,4 +119,97 @@ func (h *Hub) ClientCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.clients)
+}
+
+// Game-related broadcast methods
+
+// BroadcastGameEvent sends a game event to all connected clients
+func (h *Hub) BroadcastGameEvent(eventType MessageType, data any) {
+	h.Broadcast(Message{
+		Type: eventType,
+		Data: data,
+	})
+}
+
+// GameStateData represents game state for WebSocket broadcast
+type GameStateData struct {
+	GameID     string `json:"game_id"`
+	State      string `json:"state"`
+	TimeLeft   int    `json:"time_left"`
+	Strikes    int    `json:"strikes"`
+	MaxStrikes int    `json:"max_strikes"`
+}
+
+// GameEventData represents a generic game event
+type GameEventData struct {
+	GameID   string `json:"game_id"`
+	ModuleID string `json:"module_id,omitempty"`
+	Data     any    `json:"data,omitempty"`
+}
+
+// BroadcastGameState sends current game state
+func (h *Hub) BroadcastGameState(gameID, state string, timeLeft, strikes, maxStrikes int) {
+	h.Broadcast(Message{
+		Type: MessageTypeGameState,
+		Data: GameStateData{
+			GameID:     gameID,
+			State:      state,
+			TimeLeft:   timeLeft,
+			Strikes:    strikes,
+			MaxStrikes: maxStrikes,
+		},
+	})
+}
+
+// BroadcastTimerTick sends timer update
+func (h *Hub) BroadcastTimerTick(gameID string, timeLeft int) {
+	h.Broadcast(Message{
+		Type: MessageTypeTimerTick,
+		Data: map[string]any{
+			"game_id":   gameID,
+			"time_left": timeLeft,
+		},
+	})
+}
+
+// BroadcastStrike sends strike notification
+func (h *Hub) BroadcastStrike(gameID, moduleID, reason string, strikes, maxStrikes int) {
+	h.Broadcast(Message{
+		Type: MessageTypeStrike,
+		Data: map[string]any{
+			"game_id":     gameID,
+			"module_id":   moduleID,
+			"reason":      reason,
+			"strikes":     strikes,
+			"max_strikes": maxStrikes,
+		},
+	})
+}
+
+// BroadcastModuleSolved sends module solved notification
+func (h *Hub) BroadcastModuleSolved(gameID, moduleID string) {
+	h.Broadcast(Message{
+		Type: MessageTypeModuleSolved,
+		Data: map[string]any{
+			"game_id":   gameID,
+			"module_id": moduleID,
+		},
+	})
+}
+
+// BroadcastGameEnd sends game over notification
+func (h *Hub) BroadcastGameEnd(gameID string, won bool, reason string, timeRemaining int) {
+	msgType := MessageTypeGameLost
+	if won {
+		msgType = MessageTypeGameWon
+	}
+	h.Broadcast(Message{
+		Type: msgType,
+		Data: map[string]any{
+			"game_id":        gameID,
+			"won":            won,
+			"reason":         reason,
+			"time_remaining": timeRemaining,
+		},
+	})
 }

@@ -1,4 +1,4 @@
-module github.com/P5ina/photon-entropy
+module photon-entropy
 
 go 1.25.5
 

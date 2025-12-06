@@ -3,7 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/P5ina/photon-entropy/ws"
+	"photon-entropy/ws"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )

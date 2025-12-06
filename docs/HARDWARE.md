@@ -67,40 +67,54 @@ This document lists all hardware components required to build the physical "bomb
 ## GPIO Pinout Summary
 
 ```
-Raspberry Pi GPIO Layout
+Raspberry Pi GPIO Layout (Active pins marked with ←)
 ─────────────────────────────────────────────────────
                     3.3V  [1]  [2]  5V
-          LCD SDA   GPIO2 [3]  [4]  5V
-          LCD SCL   GPIO3 [5]  [6]  GND
-                   GPIO4  [7]  [8]  GPIO8   ← LED 2 (Green)
-                    GND   [9]  [10] GPIO15
-         RGB Red   GPIO17 [11] [12] GPIO18  ← Buzzer (PWM)
-        RGB Green  GPIO27 [13] [14] GND
-         RGB Blue  GPIO22 [15] [16] GPIO23
-                    3.3V  [17] [18] GPIO24
-                   GPIO10 [19] [20] GND
-                   GPIO9  [21] [22] GPIO25  ← LED 1 (Red)
-                   GPIO11 [23] [24] GPIO7   ← LED 3 (Blue)
-                    GND   [25] [26] GPIO1   ← LED 4 (Yellow)
-                   GPIO0  [27] [28] GPIO1
-          Rotary CLK GPIO5 [29] [30] GND
-          Rotary DT  GPIO6 [31] [32] GPIO12  ← Touch Sensor
-        Rotary SW   GPIO13 [33] [34] GND
-        Button 1   GPIO19 [35] [36] GPIO16  ← Hall Sensor
-        Button 2   GPIO26 [37] [38] GPIO20  ← Button 4
-                    GND   [39] [40] GPIO21  ← Button 3
+   LCD SDA (I2C)   GPIO2 [3]  [4]  5V
+   LCD SCL (I2C)   GPIO3 [5]  [6]  GND
+                   GPIO4 [7]  [8]  GPIO14
+                    GND  [9]  [10] GPIO15
+    RGB LED Red   GPIO17 [11] [12] GPIO18  ← Buzzer (PWM)
+  RGB LED Green   GPIO27 [13] [14] GND
+   RGB LED Blue   GPIO22 [15] [16] GPIO23
+                   3.3V  [17] [18] GPIO24
+                  GPIO10 [19] [20] GND
+                   GPIO9 [21] [22] GPIO25  ← LED 1 (Red)
+                  GPIO11 [23] [24] GPIO8   ← LED 2 (Blue)
+                    GND  [25] [26] GPIO7   ← LED 3 (Green)
+                   GPIO0 [27] [28] GPIO1   ← LED 4 (Yellow)
+   Rotary CLK      GPIO5 [29] [30] GND
+   Rotary DT       GPIO6 [31] [32] GPIO12  ← Touch Sensor
+   Rotary SW      GPIO13 [33] [34] GND
+   Button 1       GPIO19 [35] [36] GPIO16  ← Hall Sensor
+   Button 2       GPIO26 [37] [38] GPIO20  ← Button 4
+                    GND  [39] [40] GPIO21  ← Button 3
 ─────────────────────────────────────────────────────
 
-Note: GPIO 24 (Tilt Sensor) is no longer used.
-─────────────────────────────────────────────────────
+Used GPIO Pins:
+  WIRES module:
+    - Buttons: GPIO 19, 26, 21, 20
+    - LEDs:    GPIO 25, 8, 7, 1
 
-I2C Devices:
-  - LCD 16x2:  SDA=GPIO2, SCL=GPIO3, Address=0x27/0x3F
+  KEYPAD module (Rotary Encoder):
+    - CLK: GPIO 5
+    - DT:  GPIO 6
+    - SW:  GPIO 13
 
-PWM Pins (for RGB LED):
-  - Red:   GPIO 17
-  - Green: GPIO 27
-  - Blue:  GPIO 22
+  SIMON module:
+    - RGB LED: GPIO 17 (R), 27 (G), 22 (B)
+    - Touch:   GPIO 12
+
+  MAGNET module:
+    - Hall Sensor: GPIO 16
+
+  Output:
+    - Buzzer: GPIO 18 (PWM)
+
+  I2C (LCD):
+    - SDA: GPIO 2
+    - SCL: GPIO 3
+    - Address: 0x27 or 0x3F
 ```
 
 ---

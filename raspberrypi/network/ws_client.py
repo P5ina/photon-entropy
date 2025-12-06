@@ -197,6 +197,7 @@ class GameClient(WebSocketClient):
         self.on_strike: Optional[Callable[[int], None]] = None
         self.on_game_won: Optional[Callable[[], None]] = None
         self.on_game_lost: Optional[Callable[[str], None]] = None
+        self.on_magnet_state: Optional[Callable[[str, bool], None]] = None  # (led_color, buzzer_active)
 
         # Register handlers
         self._setup_handlers()
@@ -211,6 +212,7 @@ class GameClient(WebSocketClient):
         self.register_handler("game_won", self._on_game_won)
         self.register_handler("game_lost", self._on_game_lost)
         self.register_handler("game_state", self._on_game_state)
+        self.register_handler("magnet_state", self._on_magnet_state)
 
     def _on_game_created(self, data: dict):
         """Handle game created event."""
@@ -284,6 +286,19 @@ class GameClient(WebSocketClient):
     def _on_game_state(self, data: dict):
         """Handle game state update."""
         self.game_state = data
+
+    def _on_magnet_state(self, data: dict):
+        """Handle magnet module state update (LED color, buzzer)."""
+        # Only process if it's for our game
+        event_game_id = data.get("game_id")
+        if self.game_id and event_game_id != self.game_id:
+            return
+
+        led_color = data.get("led_color", "red")
+        buzzer_active = data.get("buzzer_active", False)
+        print(f"[Game] Magnet state: LED={led_color}, Buzzer={buzzer_active}")
+        if self.on_magnet_state:
+            self.on_magnet_state(led_color, buzzer_active)
 
     def create_game(self, time_limit: int = 300, max_strikes: int = 3) -> Optional[dict]:
         """Create a new game via REST API and join as bomb."""

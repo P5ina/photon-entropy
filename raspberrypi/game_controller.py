@@ -61,7 +61,12 @@ class GameController:
             (config.rgb_red, config.rgb_green, config.rgb_blue),
             mock=self.mock
         )
-        self.magnet = MagnetModule(config.hall_pin, mock=self.mock)
+        self.magnet = MagnetModule(
+            config.hall_pin,
+            rgb_pins=(config.rgb_red, config.rgb_green, config.rgb_blue),
+            buzzer=self.buzzer,
+            mock=self.mock
+        )
 
         self.modules = {
             "wires": self.wires,
@@ -110,6 +115,7 @@ class GameController:
         self.client.on_strike = self._on_server_strike
         self.client.on_game_won = self._on_server_game_won
         self.client.on_game_lost = self._on_server_game_lost
+        self.client.on_magnet_state = self._on_magnet_state
 
         await self.client.connect()
         self.lcd.show_message("Connected!", "Waiting...")
@@ -277,6 +283,14 @@ class GameController:
         """Handle strike count from server."""
         self.strikes = count
         self.buzzer.play_pattern("error")
+
+    def _on_magnet_state(self, led_color: str, buzzer_active: bool):
+        """Handle magnet module state update from server."""
+        if self.phase != GamePhase.PLAYING:
+            return
+
+        print(f"[Controller] Magnet state: LED={led_color}, Buzzer={buzzer_active}")
+        self.magnet.set_state(led_color, buzzer_active)
 
     def _on_server_game_won(self):
         """Handle game won from server."""

@@ -147,4 +147,5 @@ const (
 	EventStrike         = "strike"
 	EventGameWon        = "game_won"
 	EventGameLost       = "game_lost"
+	EventMagnetState    = "magnet_state" // LED/buzzer state update for magnet module
 )

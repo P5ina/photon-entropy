@@ -246,6 +246,9 @@ func (e *Engine) runTimer(gameID string) {
 		timeLeft := game.TimeLeft
 		game.mu.Unlock()
 
+		// Update magnet module state (LED/buzzer cycling)
+		e.UpdateMagnetState(gameID)
+
 		e.emitEvent(GameEvent{
 			Type:      EventTimerTick,
 			GameID:    gameID,
@@ -695,7 +698,6 @@ func (e *Engine) UpdateMagnetState(gameID string) {
 	}
 
 	game.mu.Lock()
-	defer game.mu.Unlock()
 
 	for i := range game.Modules {
 		if game.Modules[i].Type == ModuleMagnet && game.Modules[i].State == ModuleStateActive {
@@ -705,26 +707,57 @@ func (e *Engine) UpdateMagnetState(gameID string) {
 			// Change state every 5 seconds
 			phase := (timeLeft / 5) % 4
 
+			oldLED, _ := game.Modules[i].Config["led_color"].(string)
+			oldBuzzer, _ := game.Modules[i].Config["buzzer_active"].(bool)
+
+			var newLED string
+			var newBuzzer bool
+			var safeWindow bool
+
 			switch phase {
 			case 0:
-				game.Modules[i].Config["led_color"] = "red"
-				game.Modules[i].Config["buzzer_active"] = true
-				game.Modules[i].Config["safe_window"] = false
+				newLED = "red"
+				newBuzzer = true
+				safeWindow = false
 			case 1:
-				game.Modules[i].Config["led_color"] = "green"
-				game.Modules[i].Config["buzzer_active"] = true
-				game.Modules[i].Config["safe_window"] = false
+				newLED = "green"
+				newBuzzer = true
+				safeWindow = false
 			case 2:
-				game.Modules[i].Config["led_color"] = "green"
-				game.Modules[i].Config["buzzer_active"] = false
-				game.Modules[i].Config["safe_window"] = true // SAFE!
+				newLED = "green"
+				newBuzzer = false
+				safeWindow = true // SAFE!
 			case 3:
-				game.Modules[i].Config["led_color"] = "blue"
-				game.Modules[i].Config["buzzer_active"] = false
-				game.Modules[i].Config["safe_window"] = false
+				newLED = "blue"
+				newBuzzer = false
+				safeWindow = false
+			}
+
+			game.Modules[i].Config["led_color"] = newLED
+			game.Modules[i].Config["buzzer_active"] = newBuzzer
+			game.Modules[i].Config["safe_window"] = safeWindow
+
+			// Emit event if state changed
+			if oldLED != newLED || oldBuzzer != newBuzzer {
+				moduleID := game.Modules[i].ID
+				game.mu.Unlock()
+
+				e.emitEvent(GameEvent{
+					Type:      EventMagnetState,
+					GameID:    gameID,
+					ModuleID:  moduleID,
+					Timestamp: time.Now(),
+					Data: map[string]interface{}{
+						"led_color":     newLED,
+						"buzzer_active": newBuzzer,
+						"safe_window":   safeWindow,
+					},
+				})
+				return
 			}
 		}
 	}
+	game.mu.Unlock()
 }
 
 // CleanupGame removes a game from memory

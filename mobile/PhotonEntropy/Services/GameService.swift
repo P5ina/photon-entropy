@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 @MainActor
 class GameService: ObservableObject {
@@ -21,6 +22,9 @@ class GameService: ObservableObject {
     private var pingTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
+    // Store current game ID for reconnection
+    private var currentGameId: String?
+
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
@@ -34,6 +38,57 @@ class GameService: ObservableObject {
     }()
 
     private init() {}
+
+    // MARK: - App Lifecycle (called from SwiftUI)
+
+    func handleScenePhaseChange(to phase: ScenePhase) {
+        switch phase {
+        case .active:
+            Task {
+                await handleAppDidBecomeActive()
+            }
+        case .inactive, .background:
+            handleAppWillResignActive()
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleAppWillResignActive() {
+        // Disconnect WebSocket when app goes to background
+        if webSocketTask != nil {
+            print("[GameService] App going to background, disconnecting WebSocket")
+            disconnectWebSocket(clearGameId: false)
+        }
+    }
+
+    private func handleAppDidBecomeActive() async {
+        // Reconnect and restore state when app returns to foreground
+        guard let gameId = currentGameId else { return }
+
+        print("[GameService] App became active, reconnecting to game: \(gameId)")
+
+        do {
+            // Refresh game state from server
+            let game = try await getGameState(gameId: gameId)
+
+            // Only reconnect WebSocket if game is still active
+            if game.state == .lobby || game.state == .playing {
+                connectWebSocket(gameId: gameId)
+
+                // Also refresh manual in case it's needed
+                if manual == nil {
+                    _ = try? await getManual(gameId: gameId)
+                }
+            } else {
+                // Game is over, clear the stored game ID
+                currentGameId = nil
+            }
+        } catch {
+            print("[GameService] Failed to restore game state: \(error)")
+            connectionError = "Failed to reconnect: \(error.localizedDescription)"
+        }
+    }
 
     var baseURL: String {
         APIService.shared.baseURL
@@ -182,6 +237,16 @@ class GameService: ObservableObject {
     // MARK: - WebSocket
 
     func connectWebSocket(gameId: String) {
+        // Don't reconnect if already connected to the same game
+        if webSocketTask != nil && currentGameId == gameId && isConnected {
+            return
+        }
+
+        // Disconnect existing connection first
+        if webSocketTask != nil {
+            disconnectWebSocket(clearGameId: false)
+        }
+
         let wsURL = baseURL
             .replacingOccurrences(of: "https://", with: "wss://")
             .replacingOccurrences(of: "http://", with: "ws://")
@@ -190,6 +255,9 @@ class GameService: ObservableObject {
             connectionError = "Invalid WebSocket URL"
             return
         }
+
+        // Store game ID for reconnection
+        currentGameId = gameId
 
         webSocketTask = session.webSocketTask(with: url)
         webSocketTask?.resume()
@@ -200,12 +268,16 @@ class GameService: ObservableObject {
         startPing()
     }
 
-    func disconnectWebSocket() {
+    func disconnectWebSocket(clearGameId: Bool = true) {
         pingTask?.cancel()
         pingTask = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
         isConnected = false
+
+        if clearGameId {
+            currentGameId = nil
+        }
     }
 
     private func receiveMessage() {

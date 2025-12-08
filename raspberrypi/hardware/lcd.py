@@ -1,5 +1,6 @@
 """LCD 16x2 I2C display driver."""
 import time
+from enum import Enum
 from typing import Optional
 
 try:
@@ -7,6 +8,16 @@ try:
     HAS_RPLCD = True
 except ImportError:
     HAS_RPLCD = False
+
+
+class DisplayScene(Enum):
+    """Display scenes that control LCD behavior."""
+    IDLE = "idle"           # Initial state - showing ready message
+    WAITING = "waiting"     # Connected, waiting for game
+    GAME_CODE = "game_code" # Showing game code for players to join
+    PLAYING = "playing"     # Game in progress - timer/module updates allowed
+    GAME_OVER = "game_over" # Game ended - showing win/lose result
+    RESTART = "restart"     # Showing restart prompt - locked until reset
 
 
 class LCD:
@@ -19,6 +30,7 @@ class LCD:
         self.mock = mock or not HAS_RPLCD
         self._lcd: Optional[CharLCD] = None
         self._current_lines = ["", ""]
+        self._scene = DisplayScene.IDLE
 
     def setup(self):
         """Initialize the LCD."""
@@ -42,9 +54,19 @@ class LCD:
             print(f"[LCD] Failed to initialize: {e}")
             self.mock = True
 
+    @property
+    def scene(self) -> DisplayScene:
+        """Get current display scene."""
+        return self._scene
+
+    def set_scene(self, scene: DisplayScene):
+        """Set the display scene."""
+        self._scene = scene
+
     def clear(self):
         """Clear the display."""
         self._current_lines = ["", ""]
+        self._scene = DisplayScene.IDLE
         if self.mock:
             print("[LCD] ----------------")
             print("[LCD] |              |")
@@ -95,6 +117,10 @@ class LCD:
 
     def show_timer(self, seconds: int, strikes: int = 0):
         """Display timer in MM:SS format with strikes."""
+        # Only update timer display during gameplay
+        if self._scene != DisplayScene.PLAYING:
+            return
+
         minutes = seconds // 60
         secs = seconds % 60
         strike_str = "X" * strikes if strikes > 0 else ""
@@ -110,6 +136,10 @@ class LCD:
 
     def show_module(self, module_name: str):
         """Display current active module name."""
+        # Only update module display during gameplay
+        if self._scene != DisplayScene.PLAYING:
+            return
+
         # Module names: wires, simon, magnet
         display_names = {
             "wires": ">> WIRES",
@@ -136,20 +166,46 @@ class LCD:
         time.sleep(duration)
         self.write(old_lines[0], old_lines[1])
 
-    def show_win(self):
+    def show_idle(self):
+        """Display idle/ready message."""
+        self._scene = DisplayScene.IDLE
+        self.write("BOMB DEFUSAL", "Ready...")
+
+    def show_waiting(self):
+        """Display waiting for game message."""
+        self._scene = DisplayScene.WAITING
+        self.write("Connected!", "Waiting...")
+
+    def show_game_code(self, code: str):
+        """Display game code for players to join."""
+        self._scene = DisplayScene.GAME_CODE
+        self.write("GAME CODE:", code.upper())
+
+    def show_playing(self, time_remaining: int, strikes: int, active_module: str):
+        """Start playing scene and show initial game state."""
+        self._scene = DisplayScene.PLAYING
+        self.show_timer(time_remaining, strikes)
+        self.show_module(active_module)
+
+    def show_win(self, time_remaining: int = 0):
         """Display win message."""
-        self.write("*** DEFUSED! ***", "   YOU WIN!    ")
+        self._scene = DisplayScene.GAME_OVER
+        self.write("DEFUSED!", f"Time: {time_remaining}s")
 
     def show_lose(self):
         """Display lose message."""
+        self._scene = DisplayScene.GAME_OVER
         self.write("*** BOOM!!! ***", "  GAME OVER   ")
 
     def show_explosion(self):
         """Display explosion animation."""
+        self._scene = DisplayScene.GAME_OVER
         self.write("*** BOOM!!! ***", "  GAME OVER   ")
-        if self.mock:
-            print("[LCD] |*** BOOM!!! ***|")
-            print("[LCD] |  GAME OVER    |")
+
+    def show_restart_prompt(self):
+        """Display restart prompt - locks display until reset."""
+        self._scene = DisplayScene.RESTART
+        self.write("Press any btn", "to play again")
 
     def cleanup(self):
         """Clean up the LCD."""

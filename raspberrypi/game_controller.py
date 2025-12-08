@@ -103,7 +103,7 @@ class GameController:
             module.on_strike = lambda r, n=name: self._on_module_strike(n, r)
             module.on_action = lambda a, d, n=name: self._on_module_action(n, a, d)
 
-        self.lcd.show_message("BOMB DEFUSAL", "Ready...")
+        self.lcd.show_idle()
         print("[Controller] Hardware ready!")
 
     async def connect(self, server_url: str):
@@ -123,7 +123,7 @@ class GameController:
         self.client.on_magnet_state = self._on_magnet_state
 
         await self.client.connect()
-        self.lcd.show_message("Connected!", "Waiting...")
+        self.lcd.show_waiting()
 
     def _on_connected(self):
         """Handle connection."""
@@ -135,12 +135,12 @@ class GameController:
         self.game_id = data.get("game_id", "")
         game_code = data.get("code", "")
         print(f"[Controller] Game created: {game_code}")
-        self.lcd.write("GAME CODE:", game_code.upper())
+        self.lcd.show_game_code(game_code)
 
     def _on_disconnected(self):
         """Handle disconnection."""
         self.phase = GamePhase.IDLE
-        self.lcd.show_message("Disconnected", "Reconnecting...")
+        self.lcd.write("Disconnected", "Reconnecting...")
         print("[Controller] Disconnected from server")
 
     def _on_game_started(self, data: dict):
@@ -183,13 +183,13 @@ class GameController:
                     print(f"[Controller] Activating {module_type}")
                     self.modules[module_type].activate()
 
-        self.lcd.show_timer(self.time_remaining, self.strikes)
-
-        # Show which module is active
+        # Show initial game state on LCD
+        active_type = ""
         if self.module_order and self.active_module_index < len(self.module_order):
             active_type = self.module_order[self.active_module_index]
-            self.lcd.show_module(active_type)
-            print(f"[Controller] Game started! Time: {self.time_remaining}s, Active module: {active_type}")
+
+        self.lcd.show_playing(self.time_remaining, self.strikes, active_type)
+        print(f"[Controller] Game started! Time: {self.time_remaining}s, Active module: {active_type}")
 
         self.buzzer.tick()
 
@@ -320,7 +320,7 @@ class GameController:
         for module in self.modules.values():
             module.deactivate()
 
-        self.lcd.show_message("DEFUSED!", f"Time: {self.time_remaining}s")
+        self.lcd.show_win(self.time_remaining)
         self.buzzer.play_pattern("success")
         self.buzzer.play_pattern("success")
 
@@ -392,7 +392,7 @@ class GameController:
         for module in self.modules.values():
             module.reset()
 
-        self.lcd.show_message("BOMB DEFUSAL", "Waiting...")
+        self.lcd.show_waiting()
 
     def _schedule_restart_prompt(self):
         """Show restart prompt after game ends."""
@@ -402,7 +402,7 @@ class GameController:
             import time
             time.sleep(3)  # Wait 3 seconds to show result
             if self.phase in (GamePhase.WON, GamePhase.LOST):
-                self.lcd.show_message("Press any btn", "to play again")
+                self.lcd.show_restart_prompt()
                 print("[Controller] Press any button to restart...")
                 # Set up button listeners for restart
                 self._setup_restart_listeners()

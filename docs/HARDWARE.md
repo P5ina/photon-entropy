@@ -34,18 +34,11 @@ This document lists all hardware components required to build the physical "bomb
 
 > These are additional components — not from the KY kit. See Shopping List below.
 
-### Module: KEYPAD (rotary encoder)
-
-| Component | KY Module | GPIO | Description |
-|-----------|-----------|------|-------------|
-| Rotary Encoder | KY-040 | CLK: GPIO 5, DT: GPIO 6, SW: GPIO 13 | Enter 3-digit code |
-
 ### Module: SIMON (memory sequence)
 
 | Component | KY Module | GPIO | Description |
 |-----------|-----------|------|-------------|
 | RGB LED | KY-016 or KY-009 | R: GPIO 17, G: GPIO 27, B: GPIO 22 | Shows color sequence |
-| Touch Sensor | KY-036 | GPIO 12 | Player input |
 
 ### Module: MAGNET (Hall sensor)
 
@@ -68,13 +61,13 @@ This document lists all hardware components required to build the physical "bomb
 ```
 Raspberry Pi GPIO Layout (Active pins marked with ←)
 ─────────────────────────────────────────────────────
-                    3.3V  [1]  [2]  5V
+                   3.3V  [1]  [2]  5V
    LCD SDA (I2C)   GPIO2 [3]  [4]  5V
    LCD SCL (I2C)   GPIO3 [5]  [6]  GND
                    GPIO4 [7]  [8]  GPIO14
-  Button 4         GND  [9]  [10] GPIO15  ← Button 4 (Yellow)
-    RGB LED Red   GPIO17 [11] [12] GPIO18  ← Buzzer (PWM)
-  RGB LED Green   GPIO27 [13] [14] GND
+   Button 4         GND  [9]  [10] GPIO15  ← Button 4 (Yellow)
+   RGB LED Red    GPIO17 [11] [12] GPIO18  ← Buzzer (PWM)
+   RGB LED Green  GPIO27 [13] [14] GND
    RGB LED Blue   GPIO22 [15] [16] GPIO23
                    3.3V  [17] [18] GPIO24
                   GPIO10 [19] [20] GND
@@ -82,12 +75,12 @@ Raspberry Pi GPIO Layout (Active pins marked with ←)
                   GPIO11 [23] [24] GPIO8   ← LED 2 (Blue)
                     GND  [25] [26] GPIO7   ← LED 3 (Green)
                    GPIO0 [27] [28] GPIO1   ← LED 4 (Yellow)
-   Rotary CLK      GPIO5 [29] [30] GND
-   Rotary DT       GPIO6 [31] [32] GPIO12  ← Touch Sensor
-   Rotary SW      GPIO13 [33] [34] GND
+                   GPIO5 [29] [30] GND
+                   GPIO6 [31] [32] GPIO12
+                  GPIO13 [33] [34] GND
    Button 1       GPIO19 [35] [36] GPIO16  ← Hall Sensor
    Button 2       GPIO26 [37] [38] GPIO20
-  Button 3        GND  [39] [40] GPIO21  ← Button 3 (Green)
+   Button 3         GND  [39] [40] GPIO21  ← Button 3 (Green)
 ─────────────────────────────────────────────────────
 
 Used GPIO Pins:
@@ -95,14 +88,8 @@ Used GPIO Pins:
     - Buttons: GPIO 19, 26, 21, 15
     - LEDs:    GPIO 25, 8, 7, 1
 
-  KEYPAD module (Rotary Encoder):
-    - CLK: GPIO 5
-    - DT:  GPIO 6
-    - SW:  GPIO 13
-
   SIMON module:
     - RGB LED: GPIO 17 (R), 27 (G), 22 (B)
-    - Touch:   GPIO 12
 
   MAGNET module:
     - Hall Sensor: GPIO 16
@@ -138,9 +125,7 @@ Used GPIO Pins:
 
 | Item | From KY Kit |
 |------|-------------|
-| KY-040 Rotary Encoder | ✓ |
 | KY-016 RGB LED | ✓ |
-| KY-036 Touch Sensor | ✓ |
 | KY-003 Hall Sensor | ✓ |
 | KY-012 Buzzer | ✓ |
 
@@ -181,18 +166,6 @@ GPIO HIGH = LED ON
 GPIO LOW  = LED OFF
 ```
 
-### Rotary Encoder (KY-040)
-
-```
-KY-040          Raspberry Pi
-─────────────────────────────────
-GND  ─────────────► GND
-+    ─────────────► 3.3V
-SW   ─────────────► GPIO 13
-DT   ─────────────► GPIO 6
-CLK  ─────────────► GPIO 5
-```
-
 ### RGB LED (KY-016)
 
 ```
@@ -211,16 +184,6 @@ KY-012          Raspberry Pi
 ─────────────────────────────────
 GND  ─────────────► GND
 S    ─────────────► GPIO 18 (PWM)
-```
-
-### Touch Sensor (KY-036)
-
-```
-KY-036          Raspberry Pi
-─────────────────────────────────
-GND  ─────────────► GND
-VCC  ─────────────► 3.3V
-SIG  ─────────────► GPIO 12
 ```
 
 ### Hall Sensor (KY-003)
@@ -248,53 +211,6 @@ SIG  ─────────────► GPIO 16
 | **Total** | **~750-1450 mA** |
 
 **Recommended:** 5V 3A power supply for Raspberry Pi
-
----
-
-## Testing Checklist
-
-Before assembling the full setup, test each component individually:
-
-- [ ] LCD displays text via I2C (`i2cdetect -y 1` shows address)
-- [ ] Each button registers press/release on correct GPIO
-- [ ] Each wire LED lights up on correct GPIO
-- [ ] Rotary encoder counts up/down correctly
-- [ ] RGB LED shows all colors (R, G, B, mixed)
-- [ ] Buzzer produces sound on GPIO 18
-- [ ] Touch sensor detects finger
-- [ ] Hall sensor detects magnet
-
-### Test Commands
-
-```bash
-# Check I2C devices
-i2cdetect -y 1
-
-# Read GPIO state
-gpio readall          # WiringPi
-pinout                # RPi.GPIO
-
-# Test button (Python)
-python3 -c "
-import RPi.GPIO as GPIO
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(19, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-print('Button 1 state:', GPIO.input(19))
-"
-
-# Test LED (Python)
-python3 -c "
-import RPi.GPIO as GPIO
-import time
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(25, GPIO.OUT)
-GPIO.output(25, GPIO.HIGH)
-time.sleep(1)
-GPIO.output(25, GPIO.LOW)
-GPIO.cleanup()
-print('LED 1 blinked')
-"
-```
 
 ---
 

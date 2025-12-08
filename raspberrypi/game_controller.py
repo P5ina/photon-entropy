@@ -13,12 +13,14 @@ from modules import (
     ModuleState,
 )
 from network.ws_client import GameClient
+from network.connectivity import wait_for_connection_async
 
 
 class GamePhase(Enum):
     """Game phases."""
     IDLE = "idle"
     WAITING = "waiting"
+    RECONNECTING = "reconnecting"
     PLAYING = "playing"
     WON = "won"
     LOST = "lost"
@@ -88,6 +90,9 @@ class GameController:
         # Restart event
         self._restart_event: Optional[asyncio.Event] = None
 
+        # Reconnect event for handling connection loss
+        self._reconnect_event: Optional[asyncio.Event] = None
+
     def setup(self):
         """Initialize all hardware."""
         print("[Controller] Setting up hardware...")
@@ -139,9 +144,18 @@ class GameController:
 
     def _on_disconnected(self):
         """Handle disconnection."""
-        self.phase = GamePhase.IDLE
-        self.lcd.write("Disconnected", "Reconnecting...")
+        previous_phase = self.phase
+        self.phase = GamePhase.RECONNECTING
+        self.lcd.show_reconnecting()
         print("[Controller] Disconnected from server")
+
+        # If we were in a game, notify user that game progress may be lost
+        if previous_phase == GamePhase.PLAYING:
+            print("[Controller] WARNING: Disconnected during active game!")
+
+        # Signal that reconnection is needed
+        if self._reconnect_event and self._loop:
+            self._loop.call_soon_threadsafe(self._reconnect_event.set)
 
     def _on_game_started(self, data: dict):
         """Handle game start."""
@@ -378,8 +392,74 @@ class GameController:
         """Main game loop."""
         # Store event loop reference for thread-safe async calls
         self._loop = asyncio.get_running_loop()
+        self._reconnect_event = asyncio.Event()
+
         if self.client:
-            await self.client.listen()
+            # Run listening with reconnection support
+            while True:
+                try:
+                    await self.client.listen()
+                except Exception as e:
+                    print(f"[Controller] Connection error: {e}")
+
+                # Check if we need to reconnect
+                if self.phase == GamePhase.RECONNECTING:
+                    reconnected = await self._attempt_reconnection()
+                    if reconnected:
+                        continue
+                    else:
+                        # Failed to reconnect, exit loop
+                        break
+                else:
+                    # Normal exit (game ended or shutdown)
+                    break
+
+    async def _attempt_reconnection(self, max_retries: int = 10) -> bool:
+        """Attempt to reconnect to the server."""
+        server_url = self.client.server_url if self.client else self.config.server_url
+
+        attempt = 0
+
+        def on_waiting(retry_attempt: int):
+            self.lcd.show_reconnecting(retry_attempt)
+
+        # Wait for connectivity
+        connected = await wait_for_connection_async(
+            server_url,
+            on_waiting=on_waiting,
+            check_interval=3.0,
+            max_attempts=max_retries
+        )
+
+        if not connected:
+            self.lcd.write("Reconnect", "Failed!")
+            print("[Controller] Failed to reconnect after max retries")
+            return False
+
+        # Try to reconnect WebSocket
+        try:
+            self.lcd.write("Reconnecting...", "")
+            await self.client.connect()
+            self.phase = GamePhase.WAITING
+            self.lcd.show_waiting()
+            print("[Controller] Reconnected successfully!")
+
+            # If we had a game in progress, try to rejoin
+            if self.game_id and self.client.game_code:
+                self.lcd.write("Rejoining...", self.client.game_code[:16])
+                result = self.client.join_game_http(self.client.game_code)
+                if result:
+                    self.lcd.show_game_code(self.client.game_code)
+                    print(f"[Controller] Rejoined game: {self.client.game_code}")
+                else:
+                    # Game may have ended, just wait for a new game
+                    self.game_id = None
+                    self.lcd.show_waiting()
+
+            return True
+        except Exception as e:
+            print(f"[Controller] Reconnection failed: {e}")
+            return False
 
     def reset(self):
         """Reset game state."""
@@ -388,6 +468,7 @@ class GameController:
         self.time_remaining = 0
         self.strikes = 0
         self._restart_event = None
+        self._reconnect_event = None
 
         for module in self.modules.values():
             module.reset()

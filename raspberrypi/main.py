@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from config import Config
 from game_controller import GameController
+from network.connectivity import wait_for_connection_async, check_internet_connection
 
 
 # Load environment variables
@@ -58,6 +59,21 @@ async def main():
 
         # Game loop - keeps running until shutdown
         while not shutdown_event.is_set():
+            # Wait for network connectivity before attempting to connect
+            def on_waiting(attempt: int):
+                controller.lcd.show_no_connection(attempt)
+
+            def on_connected():
+                controller.lcd.write("Connected!", "Starting...")
+
+            print("[Main] Checking network connectivity...")
+            await wait_for_connection_async(
+                config.server_url,
+                on_waiting=on_waiting,
+                on_connected=on_connected,
+                check_interval=5.0
+            )
+
             # Connect to server
             await controller.connect(config.server_url)
 

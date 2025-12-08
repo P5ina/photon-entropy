@@ -13,6 +13,7 @@ except ImportError:
 class DisplayScene(Enum):
     """Display scenes that control LCD behavior."""
     IDLE = "idle"           # Initial state - showing ready message
+    NO_CONNECTION = "no_connection"  # No network connection
     WAITING = "waiting"     # Connected, waiting for game
     GAME_CODE = "game_code" # Showing game code for players to join
     PLAYING = "playing"     # Game in progress - timer/module updates allowed
@@ -206,6 +207,22 @@ class LCD:
         """Display restart prompt - locks display until reset."""
         self._scene = DisplayScene.RESTART
         self.write("Press any btn", "to play again")
+
+    def show_no_connection(self, attempt: int = 0):
+        """Display no connection message with retry attempt count."""
+        self._scene = DisplayScene.NO_CONNECTION
+        if attempt > 0:
+            self.write("No Connection", f"Retry #{attempt}...")
+        else:
+            self.write("No Connection", "Connecting...")
+
+    def show_reconnecting(self, attempt: int = 0):
+        """Display reconnecting message during connection loss."""
+        self._scene = DisplayScene.NO_CONNECTION
+        if attempt > 0:
+            self.write("Lost Connection", f"Retry #{attempt}...")
+        else:
+            self.write("Lost Connection", "Reconnecting...")
 
     def cleanup(self):
         """Clean up the LCD."""

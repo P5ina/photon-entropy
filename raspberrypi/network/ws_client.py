@@ -40,15 +40,25 @@ class WebSocketClient:
         if message_type in self._handlers:
             self._handlers[message_type].remove(handler)
 
-    async def connect(self):
+    async def connect(self, timeout: float = 10.0):
         """Connect to WebSocket server."""
         try:
-            self._ws = await websockets.connect(self.server_url)
+            self._ws = await asyncio.wait_for(
+                websockets.connect(self.server_url),
+                timeout=timeout
+            )
             self._connected = True
             print(f"[WS] Connected to {self.server_url}")
 
             if self.on_connect:
                 self.on_connect()
+
+        except asyncio.TimeoutError:
+            print(f"[WS] Connection timeout after {timeout}s")
+            self._connected = False
+            if self.on_error:
+                self.on_error(TimeoutError(f"Connection timeout after {timeout}s"))
+            raise
 
         except Exception as e:
             print(f"[WS] Connection error: {e}")
@@ -324,6 +334,12 @@ class GameClient(WebSocketClient):
             if self.on_game_created:
                 self.on_game_created(data)
             return data
+        except requests.exceptions.ConnectionError as e:
+            print(f"[Game] No connection to server: {e}")
+            return None
+        except requests.exceptions.Timeout as e:
+            print(f"[Game] Request timeout: {e}")
+            return None
         except Exception as e:
             print(f"[Game] Failed to create game: {e}")
             return None
@@ -342,6 +358,12 @@ class GameClient(WebSocketClient):
             self.game_code = code
             print(f"[Game] Joined game: {self.game_code}")
             return data
+        except requests.exceptions.ConnectionError as e:
+            print(f"[Game] No connection to server: {e}")
+            return None
+        except requests.exceptions.Timeout as e:
+            print(f"[Game] Request timeout: {e}")
+            return None
         except Exception as e:
             print(f"[Game] Failed to join game: {e}")
             return None
@@ -373,6 +395,12 @@ class GameClient(WebSocketClient):
             data = response.json()
             print(f"[Game] Action result: {data.get('result', {})}")
             return data
+        except requests.exceptions.ConnectionError as e:
+            print(f"[Game] No connection - action may be lost: {e}")
+            return None
+        except requests.exceptions.Timeout as e:
+            print(f"[Game] Request timeout - action may be lost: {e}")
+            return None
         except Exception as e:
             print(f"[Game] Failed to send action: {e}")
             return None

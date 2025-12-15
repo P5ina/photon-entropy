@@ -9,7 +9,7 @@ from hardware.buzzer import Buzzer
 from modules import (
     WiresModule,
     SimonModule,
-    MagnetModule,
+    # MagnetModule,  # Temporarily disabled
     ModuleState,
 )
 from network.ws_client import GameClient
@@ -67,17 +67,18 @@ class GameController:
             rgb=self.rgb_led,
             mock=self.mock
         )
-        self.magnet = MagnetModule(
-            config.hall_pin,
-            rgb=self.rgb_led,
-            buzzer=self.buzzer,
-            mock=self.mock
-        )
+        # Temporarily disabled magnet module
+        # self.magnet = MagnetModule(
+        #     config.hall_pin,
+        #     rgb=self.rgb_led,
+        #     buzzer=self.buzzer,
+        #     mock=self.mock
+        # )
 
         self.modules = {
             "wires": self.wires,
             "simon": self.simon,
-            "magnet": self.magnet,
+            # "magnet": self.magnet,  # Temporarily disabled
         }
 
         # Network
@@ -125,7 +126,7 @@ class GameController:
         self.client.on_strike = self._on_server_strike
         self.client.on_game_won = self._on_server_game_won
         self.client.on_game_lost = self._on_server_game_lost
-        self.client.on_magnet_state = self._on_magnet_state
+        # self.client.on_magnet_state = self._on_magnet_state  # Temporarily disabled
 
         await self.client.connect()
         self.lcd.show_waiting()
@@ -310,13 +311,14 @@ class GameController:
         self.strikes = count
         self.buzzer.play_pattern("error")
 
-    def _on_magnet_state(self, led_color: str, buzzer_active: bool):
-        """Handle magnet module state update from server."""
-        if self.phase != GamePhase.PLAYING:
-            return
-
-        print(f"[Controller] Magnet state: LED={led_color}, Buzzer={buzzer_active}")
-        self.magnet.set_state(led_color, buzzer_active)
+    # Temporarily disabled magnet module handler
+    # def _on_magnet_state(self, led_color: str, buzzer_active: bool):
+    #     """Handle magnet module state update from server."""
+    #     if self.phase != GamePhase.PLAYING:
+    #         return
+    #
+    #     print(f"[Controller] Magnet state: LED={led_color}, Buzzer={buzzer_active}")
+    #     self.magnet.set_state(led_color, buzzer_active)
 
     def _on_server_game_won(self):
         """Handle game won from server."""

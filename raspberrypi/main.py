@@ -151,7 +151,7 @@ def run_demo():
             "wires": {"wire_order": [1, 3, 0]},
             "keypad": {"code": [4, 2, 7]},
             "simon": {"sequence": ["red", "blue", "green"], "rounds": 2},
-            "magnet": {"safe_zones": [(5, 10)], "required": 1},
+            # "magnet": {"safe_zones": [(5, 10)], "required": 1},  # Temporarily disabled
             "stability": {"max_tilts": 5, "stable_duration": 10},
         }
     })
